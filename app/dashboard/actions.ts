@@ -50,8 +50,8 @@ export async function getOrCreateWorkspaceCalendar(userId: string) {
     calendar = await prisma.calendar.create({
       data: {
         slug: "work",
-        name: "Work calendar",
-        description: "Shared team calendar",
+        name: "Pracovní kalendář",
+        description: "Sdílený pracovní kalendář",
         ownerId: userId,
         members: {
           create: {
@@ -160,9 +160,9 @@ export async function shareCalendarAccess(formData: FormData) {
 
     await sendMail({
       to: email,
-      subject: "You have access to the work calendar",
-      text: `You were granted access to the shared work calendar. Sign in with this email to see it in the app.`,
-      html: `<p>You were granted access to the shared work calendar.</p><p>Sign in with this email to see it in the app.</p>`
+      subject: "Přístup do pracovního kalendáře",
+      text: `Byl ti udělen přístup do sdíleného pracovního kalendáře. Přihlas se tímto emailem a v aplikaci ho uvidíš.`,
+      html: `<p>Byl ti udělen přístup do sdíleného pracovního kalendáře.</p><p>Přihlas se tímto emailem a v aplikaci ho uvidíš.</p>`
     });
   } else {
     const token = randomUUID();
@@ -181,9 +181,9 @@ export async function shareCalendarAccess(formData: FormData) {
 
     await sendMail({
       to: email,
-      subject: "You have access to the work calendar",
-      text: `You were added to the shared work calendar. Open the app, sign in with this email, and the access will be applied automatically.`,
-      html: `<p>You were added to the shared work calendar.</p><p>Open the app and sign in with this email. Once the account exists, access will be applied automatically.</p>`
+      subject: "Přístup do pracovního kalendáře",
+      text: `Byl jsi přidán do sdíleného pracovního kalendáře. Otevři aplikaci a přihlas se tímto emailem. Jakmile účet vznikne, přístup se nastaví automaticky.`,
+      html: `<p>Byl jsi přidán do sdíleného pracovního kalendáře.</p><p>Otevři aplikaci a přihlas se tímto emailem. Jakmile účet vznikne, přístup se nastaví automaticky.</p>`
     });
   }
 

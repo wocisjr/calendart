@@ -134,6 +134,12 @@ textarea {
   border: 1px solid var(--panel-border);
 }
 
+.button-ghost--active {
+  color: var(--accent);
+  border-color: rgba(26, 115, 232, 0.3);
+  background: rgba(26, 115, 232, 0.06);
+}
+
 .button-accent {
   background: linear-gradient(135deg, var(--accent), #4d90fe);
   color: #ffffff;
@@ -411,6 +417,14 @@ textarea {
   transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
+.day-card--month {
+  min-height: 170px;
+}
+
+.day-card--outside {
+  opacity: 0.55;
+}
+
 .day-card:hover {
   transform: translateY(-2px);
   border-color: rgba(26, 115, 232, 0.28);
@@ -451,6 +465,10 @@ textarea {
   gap: 8px;
 }
 
+.day-events--month {
+  grid-template-columns: 1fr;
+}
+
 .event-chip {
   border-radius: 16px;
   padding: 10px;
@@ -481,6 +499,12 @@ textarea {
 .empty-state {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .sidebar {
@@ -541,6 +565,7 @@ textarea {
 }
 
 @media (max-width: 1200px) {
+  .month-grid,
   .week-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -564,6 +589,10 @@ textarea {
   }
 
   .week-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .month-grid {
     grid-template-columns: 1fr;
   }
 

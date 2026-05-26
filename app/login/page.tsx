@@ -31,19 +31,18 @@ export default function LoginPage() {
   return (
     <main className="shell login-wrap">
       <section className="login-card">
-        <span className="kicker">Magic link sign in</span>
-        <h1>Pošli si link do emailu.</h1>
+        <span className="kicker">Přihlášení přes odkaz</span>
+        <h1>Pošli si přihlašovací link do emailu.</h1>
         <p className="hint">
           Není tu heslo. Zadáš email, klikneš na odkaz v poště a aplikace tě udrží přihlášeného.
         </p>
 
-        <form className="form-grid" method="post" action="/api/auth/signin/email"
-        >
+        <form className="form-grid" method="post" action="/api/auth/signin/email">
           <input type="hidden" name="csrfToken" value={csrfToken ?? ""} />
           <input type="hidden" name="callbackUrl" value="/dashboard" />
           <div>
             <label className="label" htmlFor="email">
-              Email
+              E-mail
             </label>
             <input
               id="email"
@@ -52,7 +51,7 @@ export default function LoginPage() {
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="name@company.com"
+              placeholder="jmeno@firma.cz"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
@@ -60,18 +59,18 @@ export default function LoginPage() {
           </div>
 
           <button className="button-accent" type="submit" disabled={!csrfToken}>
-            {csrfToken ? "Send magic link" : "Preparing..."}
+            {csrfToken ? "Poslat odkaz" : "Načítám formulář"}
           </button>
           {!csrfToken ? (
-            <p className="hint">Loading login form…</p>
+            <p className="hint">Načítám přihlášení…</p>
           ) : (
-            <p className="hint">After submit, check your email for the sign-in link.</p>
+            <p className="hint">Po odeslání zkontroluj email a klikni na přihlašovací odkaz.</p>
           )}
         </form>
 
         <div style={{ marginTop: 18 }}>
           <Link className="button-ghost" href="/">
-            Back home
+            Domů
           </Link>
         </div>
       </section>

@@ -24,6 +24,8 @@ type WorkspaceEvent = Prisma.EventGetPayload<{
   };
 }>;
 
+type ViewMode = "week" | "month";
+
 function parseDateInput(value?: string) {
   if (!value) {
     return null;
@@ -31,6 +33,10 @@ function parseDateInput(value?: string) {
 
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseView(value?: string): ViewMode {
+  return value === "month" ? "month" : "week";
 }
 
 function startOfWeek(date: Date) {
@@ -42,9 +48,28 @@ function startOfWeek(date: Date) {
   return result;
 }
 
+function startOfMonth(date: Date) {
+  const result = new Date(date);
+  result.setDate(1);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function endOfMonth(date: Date) {
+  const result = startOfMonth(date);
+  result.setMonth(result.getMonth() + 1);
+  return result;
+}
+
 function addDays(date: Date, days: number) {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
+  return result;
+}
+
+function addMonths(date: Date, months: number) {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
   return result;
 }
 
@@ -65,7 +90,14 @@ function formatWeekLabel(start: Date, end: Date) {
     month: "short"
   });
 
-  return `${formatter.format(start)} - ${formatter.format(end)}`;
+  return `${formatter.format(start)} - ${formatter.format(addDays(end, -1))}`;
+}
+
+function formatMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat("cs-CZ", {
+    month: "long",
+    year: "numeric"
+  }).format(date);
 }
 
 function formatDayTitle(date: Date) {
@@ -98,18 +130,12 @@ function groupByDay(events: WorkspaceEvent[]) {
   }, {});
 }
 
-export default async function DashboardPage({
-  searchParams
-}: Readonly<{
-  searchParams?: Promise<{ day?: string }>;
-}>) {
-  const session = await getServerSession(authOptions);
+function makeViewHref(date: Date, view: ViewMode) {
+  return `/dashboard?day=${toDayKey(date)}&view=${view}`;
+}
 
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const calendar = await getOrCreateWorkspaceCalendar(session.user.id);
+async function loadWorkspace(sessionUserId: string) {
+  const calendar = await getOrCreateWorkspaceCalendar(sessionUserId);
   const loadedCalendar = await prisma.calendar.findFirst({
     where: { id: calendar.id },
     include: {
@@ -129,7 +155,24 @@ export default async function DashboardPage({
     throw new Error("Workspace calendar could not be initialized.");
   }
 
-  const calendarData = loadedCalendar as WorkspaceCalendar;
+  return loadedCalendar as WorkspaceCalendar;
+}
+
+export default async function DashboardPage({
+  searchParams
+}: Readonly<{
+  searchParams?: Promise<{ day?: string; view?: string }>;
+}>) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const view = parseView(resolvedSearchParams.view);
+  const calendarData = await loadWorkspace(session.user.id);
+
   const userMembership = calendarData.members.find((member) => member.userId === session.user.id);
   const isAllowed =
     session.user.role === "ADMIN" ||
@@ -141,14 +184,14 @@ export default async function DashboardPage({
     return (
       <main className="shell">
         <section className="panel" style={{ maxWidth: 560, margin: "80px auto 0" }}>
-          <div className="panel-title">Access pending</div>
-          <h1 className="panel-heading">You are not yet on the shared calendar.</h1>
+          <div className="panel-title">Přístup čeká</div>
+          <h1 className="panel-heading">Ještě nejsi ve sdíleném kalendáři.</h1>
           <p className="copy">
-            Ask the calendar owner or an admin to share access with your email, then sign in again.
+            Požádej vlastníka nebo administrátora, aby ti sdílel přístup na tvůj email a pak se přihlaš znovu.
           </p>
           <div className="nav-actions" style={{ marginTop: 16 }}>
             <Link className="button-ghost" href="/login">
-              Back to login
+              Zpět na přihlášení
             </Link>
             <LogoutButton />
           </div>
@@ -157,17 +200,15 @@ export default async function DashboardPage({
     );
   }
 
-  const resolvedSearchParams = (await searchParams) ?? {};
   const selectedDate = parseDateInput(resolvedSearchParams.day) ?? new Date();
-  const weekStart = startOfWeek(selectedDate);
-  const weekEnd = addDays(weekStart, 7);
-
+  const rangeStart = view === "month" ? startOfMonth(selectedDate) : startOfWeek(selectedDate);
+  const rangeEnd = view === "month" ? endOfMonth(selectedDate) : addDays(rangeStart, 7);
   const events = await prisma.event.findMany({
     where: {
       calendarId: calendarData.id,
       startsAt: {
-        gte: weekStart,
-        lt: weekEnd
+        gte: rangeStart,
+        lt: rangeEnd
       }
     },
     include: {
@@ -182,10 +223,15 @@ export default async function DashboardPage({
   const eventsByDay = groupByDay(events);
   const selectedDayKey = toDayKey(selectedDate);
   const selectedDayEvents = eventsByDay[selectedDayKey] ?? [];
-  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
   const selectedDayInput = toDateTimeLocal(selectedDate, "09:00");
   const selectedDayEndInput = toDateTimeLocal(selectedDate, "10:00");
   const memberCount = calendarData.members.length;
+  const viewLabel = view === "month" ? formatMonthLabel(selectedDate) : formatWeekLabel(rangeStart, rangeEnd);
+  const prevRangeDate = view === "month" ? addMonths(selectedDate, -1) : addDays(rangeStart, -7);
+  const nextRangeDate = view === "month" ? addMonths(selectedDate, 1) : addDays(rangeStart, 7);
+  const monthGridStart = startOfWeek(startOfMonth(selectedDate));
+  const monthGridDays = Array.from({ length: 42 }, (_, index) => addDays(monthGridStart, index));
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(rangeStart, index));
 
   return (
     <main className="shell">
@@ -195,16 +241,16 @@ export default async function DashboardPage({
             <span>◫</span>
           </div>
           <div>
-            <div>Work calendar</div>
+            <div>Pracovní kalendář</div>
             <div className="muted" style={{ fontSize: "0.88rem" }}>
-              Shared team calendar
+              Sdílený kalendář pro celý tým
             </div>
           </div>
         </div>
         <div className="nav-actions">
-          <span className="badge">{memberCount} members</span>
+          <span className="badge">{memberCount} členů</span>
           <Link className="button-ghost" href="/">
-            Home
+            Domů
           </Link>
           <LogoutButton />
         </div>
@@ -212,69 +258,109 @@ export default async function DashboardPage({
 
       <section className="toolbar">
         <div>
-          <div className="toolbar-title">Week view</div>
-          <div className="muted">{formatWeekLabel(weekStart, weekEnd)}</div>
+          <div className="toolbar-title">{view === "month" ? "Měsíční pohled" : "Týdenní pohled"}</div>
+          <div className="muted">{viewLabel}</div>
         </div>
 
         <div className="nav-actions">
-          <Link className="button-ghost" href={`/dashboard?day=${toDayKey(addDays(weekStart, -7))}`}>
-            Prev week
+          <Link className="button-ghost" href={makeViewHref(prevRangeDate, view)}>
+            {view === "month" ? "Předchozí měsíc" : "Předchozí týden"}
           </Link>
-          <Link className="button-ghost" href={`/dashboard?day=${toDayKey(new Date())}`}>
-            Today
+          <Link className="button-ghost" href={makeViewHref(new Date(), view)}>
+            Dnes
           </Link>
-          <Link className="button-ghost" href={`/dashboard?day=${toDayKey(addDays(weekStart, 7))}`}>
-            Next week
+          <Link className="button-ghost" href={makeViewHref(nextRangeDate, view)}>
+            {view === "month" ? "Další měsíc" : "Další týden"}
+          </Link>
+          <Link className={`button-ghost ${view === "week" ? "button-ghost--active" : ""}`} href={makeViewHref(selectedDate, "week")}>
+            Týden
+          </Link>
+          <Link className={`button-ghost ${view === "month" ? "button-ghost--active" : ""}`} href={makeViewHref(selectedDate, "month")}>
+            Měsíc
           </Link>
         </div>
       </section>
 
       <section className="calendar-layout">
         <div className="calendar-board">
-          <div className="week-grid">
-            {weekDays.map((day) => {
-              const dayKey = toDayKey(day);
-              const dayEvents = eventsByDay[dayKey] ?? [];
-              const isSelected = dayKey === selectedDayKey;
+          {view === "month" ? (
+            <div className="month-grid">
+              {monthGridDays.map((day) => {
+                const dayKey = toDayKey(day);
+                const dayEvents = eventsByDay[dayKey] ?? [];
+                const isSelected = dayKey === selectedDayKey;
+                const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
 
-              return (
-                <Link
-                  key={dayKey}
-                  href={`/dashboard?day=${dayKey}`}
-                  className={`day-card ${isSelected ? "day-card--selected" : ""}`}
-                >
-                  <div className="day-head">
-                    <div>
-                      <div className="day-label">{formatDayTitle(day)}</div>
-                      <div className="muted">{dayEvents.length} events</div>
+                return (
+                  <Link
+                    key={dayKey}
+                    href={makeViewHref(day, "month")}
+                    className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isOutsideMonth ? "day-card--outside" : ""}`}
+                  >
+                    <div className="day-head">
+                      <div>
+                        <div className="day-label">{formatDayTitle(day)}</div>
+                      </div>
+                      <span className="day-number">{day.getDate()}</span>
                     </div>
-                    <span className="day-number">{day.getDate()}</span>
-                  </div>
 
-                  <div className="day-events">
-                    {dayEvents.length ? (
-                      dayEvents.slice(0, 4).map((event) => (
+                    <div className="day-events day-events--month">
+                      {dayEvents.slice(0, 4).map((event) => (
                         <article className="event-chip" key={event.id}>
                           <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
                           <div className="event-chip__title">{event.title}</div>
                           <div className="event-chip__meta">
-                            {event.createdBy.name || event.createdBy.email || "Unknown"} · {formatTime(new Date(event.createdAt))}
+                            {event.createdBy.name || event.createdBy.email || "Neznámý"} · {formatTime(new Date(event.createdAt))}
                           </div>
                         </article>
-                      ))
-                    ) : (
-                      <div className="empty-day">No events yet</div>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+                      ))}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="week-grid">
+              {weekDays.map((day) => {
+                const dayKey = toDayKey(day);
+                const dayEvents = eventsByDay[dayKey] ?? [];
+                const isSelected = dayKey === selectedDayKey;
+
+                return (
+                  <Link
+                    key={dayKey}
+                    href={makeViewHref(day, "week")}
+                    className={`day-card ${isSelected ? "day-card--selected" : ""}`}
+                  >
+                    <div className="day-head">
+                      <div>
+                        <div className="day-label">{formatDayTitle(day)}</div>
+                        <div className="muted">{dayEvents.length} událostí</div>
+                      </div>
+                      <span className="day-number">{day.getDate()}</span>
+                    </div>
+
+                    <div className="day-events">
+                      {dayEvents.slice(0, 4).map((event) => (
+                        <article className="event-chip" key={event.id}>
+                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                          <div className="event-chip__title">{event.title}</div>
+                          <div className="event-chip__meta">
+                            {event.createdBy.name || event.createdBy.email || "Neznámý"} · {formatTime(new Date(event.createdAt))}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <aside className="sidebar">
           <section className="panel">
-            <div className="panel-title">Selected day</div>
+            <div className="panel-title">Vybraný den</div>
             <h2 className="panel-heading">{formatDayTitle(selectedDate)}</h2>
 
             {selectedDayEvents.length ? (
@@ -288,92 +374,92 @@ export default async function DashboardPage({
                     {event.location ? <div className="muted">{event.location}</div> : null}
                     {event.description ? <div className="copy">{event.description}</div> : null}
                     <div className="event-meta">
-                      Added by {event.createdBy.name || event.createdBy.email || "Unknown"} on {formatAddedAt(new Date(event.createdAt))}
+                      Přidal {event.createdBy.name || event.createdBy.email || "Neznámý"} dne {formatAddedAt(new Date(event.createdAt))}
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="empty-state">No events for this day.</div>
+              <div className="empty-state">Pro tento den zatím není žádná událost.</div>
             )}
           </section>
 
           <section className="panel">
-            <div className="panel-title">Add event</div>
+            <div className="panel-title">Přidat událost</div>
             <form className="form-grid" action={createEvent}>
               <input type="hidden" name="calendarId" value={calendarData.id} />
               <div>
                 <label className="label" htmlFor="event-title">
-                  Title
+                  Název
                 </label>
-                <input id="event-title" name="title" className="field" placeholder="Standup" required />
+                <input id="event-title" name="title" className="field" placeholder="Porada" required />
               </div>
               <div className="inline-fields">
                 <div>
                   <label className="label" htmlFor="startsAt">
-                    Start
+                    Začátek
                   </label>
                   <input id="startsAt" name="startsAt" className="field" type="datetime-local" defaultValue={selectedDayInput} required />
                 </div>
                 <div>
                   <label className="label" htmlFor="endsAt">
-                    End
+                    Konec
                   </label>
                   <input id="endsAt" name="endsAt" className="field" type="datetime-local" defaultValue={selectedDayEndInput} required />
                 </div>
               </div>
               <div>
                 <label className="label" htmlFor="event-location">
-                  Location
+                  Místo
                 </label>
-                <input id="event-location" name="location" className="field" placeholder="Room A / Meet" />
+                <input id="event-location" name="location" className="field" placeholder="Místnost A / Meet" />
               </div>
               <div>
                 <label className="label" htmlFor="event-description">
-                  Notes
+                  Poznámky
                 </label>
-                <textarea id="event-description" name="description" className="textarea" placeholder="Optional notes" />
+                <textarea id="event-description" name="description" className="textarea" placeholder="Volitelné poznámky" />
               </div>
               <button className="button-accent" type="submit" disabled={!canManage}>
-                {canManage ? "Add event" : "View only"}
+                {canManage ? "Přidat událost" : "Jen pro čtení"}
               </button>
             </form>
           </section>
 
           <section className="panel">
-            <div className="panel-title">Share access</div>
+            <div className="panel-title">Sdílet přístup</div>
             <div className="muted" style={{ marginBottom: 12 }}>
-              Invite people to the shared work calendar by email.
+              Pozvi lidi do sdíleného pracovního kalendáře na email.
             </div>
             <form className="form-grid" action={shareCalendarAccess}>
               <div>
                 <label className="label" htmlFor="share-email">
-                  Email
+                  E-mail
                 </label>
-                <input id="share-email" name="email" className="field" type="email" placeholder="name@company.com" required />
+                <input id="share-email" name="email" className="field" type="email" placeholder="jmeno@firma.cz" required />
               </div>
               <div>
                 <label className="label" htmlFor="share-role">
-                  Access level
+                  Úroveň přístupu
                 </label>
                 <select id="share-role" name="role" className="select" defaultValue="VIEWER">
-                  <option value="VIEWER">Viewer</option>
-                  <option value="EDITOR">Editor</option>
+                  <option value="VIEWER">Čtení</option>
+                  <option value="EDITOR">Úpravy</option>
                 </select>
               </div>
               <button className="button-ghost" type="submit" disabled={!canManage}>
-                {canManage ? "Share access" : "Owner only"}
+                {canManage ? "Sdílet přístup" : "Jen vlastník"}
               </button>
             </form>
           </section>
 
           <section className="panel">
-            <div className="panel-title">Members</div>
+            <div className="panel-title">Členové</div>
             <div className="member-list">
               {calendarData.members.map((member) => (
                 <article className="member-pill" key={member.id}>
                   <div>
-                    <strong>{member.user.name || member.user.email || "Unknown"}</strong>
+                    <strong>{member.user.name || member.user.email || "Neznámý"}</strong>
                     <div className="muted">{member.user.email}</div>
                   </div>
                   <span className="badge">{member.role}</span>
