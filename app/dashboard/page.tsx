@@ -253,6 +253,7 @@ export default async function DashboardPage({
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(rangeStart, index));
   const today = new Date();
   const weekDayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
+  const todayButtonLabel = view === "month" ? formatMonthLabel(new Date()) : "Tento týden";
 
   return (
     <main className="shell">
@@ -285,7 +286,7 @@ export default async function DashboardPage({
             ‹
           </Link>
           <Link className="button-ghost" href={makeViewHref(new Date(), view)}>
-            Dnes
+            {todayButtonLabel}
           </Link>
           <Link className="button-ghost button-ghost--compact" href={makeViewHref(nextRangeDate, view)} aria-label="Další období">
             ›
@@ -492,8 +493,7 @@ export default async function DashboardPage({
               <div className="calendar-weekdays" aria-hidden="true">
                 {weekDays.map((day) => (
                   <div key={toDayKey(day)} className="calendar-weekday">
-                    <div>{formatDayLabel(day)}</div>
-                    <strong>{day.getDate()}</strong>
+                    <div>{formatDayTitle(day)}</div>
                   </div>
                 ))}
               </div>
