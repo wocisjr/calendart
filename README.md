@@ -36,6 +36,14 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
+## Login flow
+
+- Open `/login`
+- Enter your email
+- The form posts directly to NextAuth's email signin endpoint
+- After submit, you land on `/login/verify-request`
+- Open the email and click the magic link to finish sign-in
+
 ## Production-ish run
 
 ```bash
@@ -59,3 +67,4 @@ Important variables in `.env`:
 - Magic link login uses the SMTP server from `EMAIL_SERVER`.
 - `ADMIN_EMAILS` promotes matching accounts to admin role.
 - Sessions stay valid for 30 days by default.
+- Login is intentionally handled inside the app UI, but the auth backend stays in NextAuth.

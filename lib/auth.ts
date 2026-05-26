@@ -17,7 +17,8 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60
   },
   pages: {
-    signIn: "/login"
+    signIn: "/login",
+    verifyRequest: "/login/verify-request"
   },
   providers: [
     EmailProvider({

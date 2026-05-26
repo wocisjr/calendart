@@ -1,13 +1,32 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { getCsrfToken } from "next-auth/react";
 import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    getCsrfToken()
+      .then((token) => {
+        if (alive) {
+          setCsrfToken(token ?? null);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setCsrfToken(null);
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <main className="shell login-wrap">
@@ -18,26 +37,10 @@ export default function LoginPage() {
           Není tu heslo. Zadáš email, klikneš na odkaz v poště a aplikace tě udrží přihlášeného.
         </p>
 
-        <form
-          className="form-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            startTransition(async () => {
-              const result = await signIn("email", {
-                email,
-                callbackUrl: "/dashboard",
-                redirect: false
-              });
-
-              if (result?.error) {
-                setMessage("Odeslání se nepovedlo. Zkontroluj email a SMTP.");
-                return;
-              }
-
-              setMessage("Odkaz jsme poslali do emailu. Klikni na něj pro přihlášení.");
-            });
-          }}
+        <form className="form-grid" method="post" action="/api/auth/signin/email"
         >
+          <input type="hidden" name="csrfToken" value={csrfToken ?? ""} />
+          <input type="hidden" name="callbackUrl" value="/dashboard" />
           <div>
             <label className="label" htmlFor="email">
               Email
@@ -56,11 +59,14 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className="button-accent" type="submit" disabled={isPending}>
-            {isPending ? "Sending..." : "Send magic link"}
+          <button className="button-accent" type="submit" disabled={!csrfToken}>
+            {csrfToken ? "Send magic link" : "Preparing..."}
           </button>
-
-          {message ? <p className="hint">{message}</p> : null}
+          {!csrfToken ? (
+            <p className="hint">Loading login form…</p>
+          ) : (
+            <p className="hint">After submit, check your email for the sign-in link.</p>
+          )}
         </form>
 
         <div style={{ marginTop: 18 }}>
