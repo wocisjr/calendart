@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendMail } from "@/lib/mail";
 import { randomUUID } from "crypto";
 
 async function requireUser() {
@@ -157,13 +156,6 @@ export async function shareCalendarAccess(formData: FormData) {
         role: role === "EDITOR" ? "EDITOR" : "VIEWER"
       }
     });
-
-    await sendMail({
-      to: email,
-      subject: "Přístup do pracovního kalendáře",
-      text: `Byl ti udělen přístup do sdíleného pracovního kalendáře. Přihlas se tímto emailem a v aplikaci ho uvidíš.`,
-      html: `<p>Byl ti udělen přístup do sdíleného pracovního kalendáře.</p><p>Přihlas se tímto emailem a v aplikaci ho uvidíš.</p>`
-    });
   } else {
     const token = randomUUID();
     const expiresAt = new Date();
@@ -178,14 +170,36 @@ export async function shareCalendarAccess(formData: FormData) {
         expiresAt
       }
     });
-
-    await sendMail({
-      to: email,
-      subject: "Přístup do pracovního kalendáře",
-      text: `Byl jsi přidán do sdíleného pracovního kalendáře. Otevři aplikaci a přihlas se tímto emailem. Jakmile účet vznikne, přístup se nastaví automaticky.`,
-      html: `<p>Byl jsi přidán do sdíleného pracovního kalendáře.</p><p>Otevři aplikaci a přihlas se tímto emailem. Jakmile účet vznikne, přístup se nastaví automaticky.</p>`
-    });
   }
+
+  revalidatePath("/dashboard");
+}
+
+export async function removeCalendarMember(formData: FormData) {
+  const user = await requireUser();
+  const memberId = String(formData.get("memberId") ?? "");
+
+  if (!memberId) {
+    return;
+  }
+
+  const calendar = await getWorkspaceCalendar();
+  const membership = calendar.members.find((member) => member.userId === user.id);
+  const canManage = user.role === "ADMIN" || membership?.role === "OWNER";
+
+  if (!canManage) {
+    return;
+  }
+
+  const targetMember = calendar.members.find((member) => member.id === memberId);
+
+  if (!targetMember || targetMember.userId === calendar.ownerId) {
+    return;
+  }
+
+  await prisma.calendarMember.delete({
+    where: { id: memberId }
+  });
 
   revalidatePath("/dashboard");
 }

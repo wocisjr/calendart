@@ -1,71 +1,141 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getCsrfToken } from "next-auth/react";
 import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { signIn } from "next-auth/react";
+
+type AuthMode = "login" | "register";
 
 export default function LoginPage() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const headline = mode === "login" ? "Přihlas se do kalendáře." : "Vytvoř si účet do kalendáře.";
+  const hint =
+    mode === "login"
+      ? "Použij svoje uživatelské jméno a heslo."
+      : "Při prvním použití si tady založíš účet. E-mail je volitelný, ale hodí se pro přiřazení sdílení a pro přechod ze starého účtu.";
 
-    getCsrfToken()
-      .then((token) => {
-        if (alive) {
-          setCsrfToken(token ?? null);
-        }
-      })
-      .catch(() => {
-        if (alive) {
-          setCsrfToken(null);
-        }
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await signIn("credentials", {
+        redirect: false,
+        username,
+        email,
+        password,
+        mode,
+        callbackUrl: "/dashboard"
       });
 
-    return () => {
-      alive = false;
-    };
-  }, []);
+      if (result?.error) {
+          setError(
+            mode === "login"
+              ? "Přihlášení selhalo. Zkontroluj jméno a heslo."
+              : "Registrace selhala. Zkus jiné jméno nebo jiný e-mail."
+          );
+          return;
+      }
+
+      window.location.href = result?.url ?? "/dashboard";
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <main className="shell login-wrap">
       <section className="login-card">
-        <span className="kicker">Přihlášení přes odkaz</span>
-        <h1>Pošli si přihlašovací link do emailu.</h1>
-        <p className="hint">
-          Není tu heslo. Zadáš email, klikneš na odkaz v poště a aplikace tě udrží přihlášeného.
-        </p>
+        <span className="kicker">Přihlášení</span>
+        <h1>{headline}</h1>
+        <p className="hint">{hint}</p>
 
-        <form className="form-grid" method="post" action="/api/auth/signin/email">
-          <input type="hidden" name="csrfToken" value={csrfToken ?? ""} />
-          <input type="hidden" name="callbackUrl" value="/dashboard" />
+        <div className="mode-switch" role="tablist" aria-label="Režim přihlášení">
+          <button
+            className={`button-ghost ${mode === "login" ? "button-ghost--active" : ""}`}
+            type="button"
+            onClick={() => setMode("login")}
+          >
+            Přihlásit se
+          </button>
+          <button
+            className={`button-ghost ${mode === "register" ? "button-ghost--active" : ""}`}
+            type="button"
+            onClick={() => setMode("register")}
+          >
+            Vytvořit účet
+          </button>
+        </div>
+
+        <form className="form-grid" onSubmit={handleSubmit}>
           <div>
-            <label className="label" htmlFor="email">
-              E-mail
+            <label className="label" htmlFor="username">
+              Jméno
             </label>
             <input
-              id="email"
-              name="email"
+              id="username"
+              name="username"
               className="field"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="jmeno@firma.cz"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              type="text"
+              autoComplete="username"
+              placeholder="ondrej"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
               required
             />
           </div>
 
-          <button className="button-accent" type="submit" disabled={!csrfToken}>
-            {csrfToken ? "Poslat odkaz" : "Načítám formulář"}
+          {mode === "register" ? (
+            <div>
+              <label className="label" htmlFor="email">
+                E-mail
+              </label>
+              <input
+                id="email"
+                name="email"
+                className="field"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="jmeno@firma.cz"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+          ) : null}
+
+          <div>
+            <label className="label" htmlFor="password">
+              Heslo
+            </label>
+            <input
+              id="password"
+              name="password"
+              className="field"
+              type="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              minLength={8}
+              required
+            />
+          </div>
+
+          <input type="hidden" name="mode" value={mode} />
+
+          <button className="button-accent" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Pracuji..." : mode === "login" ? "Přihlásit se" : "Vytvořit účet"}
           </button>
-          {!csrfToken ? (
-            <p className="hint">Načítám přihlášení…</p>
-          ) : (
-            <p className="hint">Po odeslání zkontroluj email a klikni na přihlašovací odkaz.</p>
-          )}
+
+          {error ? <p className="hint" style={{ color: "var(--danger)" }}>{error}</p> : null}
         </form>
 
         <div style={{ marginTop: 18 }}>

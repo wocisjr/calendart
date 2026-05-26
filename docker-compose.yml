@@ -16,25 +16,15 @@ services:
       timeout: 5s
       retries: 10
 
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-
   app:
     build: .
     depends_on:
       db:
         condition: service_healthy
-      mailpit:
-        condition: service_started
     environment:
       DATABASE_URL: ${DATABASE_URL:-mysql://calendar:calendar@db:3306/calendar}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-to-a-long-random-string}
-      EMAIL_SERVER: ${EMAIL_SERVER:-smtp://mailpit:1025}
-      EMAIL_FROM: ${EMAIL_FROM:-Calendar Thingy <no-reply@calendar.local>}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     ports:
       - "3000:3000"

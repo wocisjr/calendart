@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Pracovní kalendář",
-  description: "Sdílený pracovní kalendář s přihlášením přes odkaz a podporou PWA."
+  description: "Sdílený pracovní kalendář s přihlášením přes jméno a heslo a podporou PWA."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

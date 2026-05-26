@@ -390,7 +390,7 @@ textarea {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.58fr);
   gap: 20px;
   align-items: start;
 }
@@ -413,12 +413,12 @@ textarea {
   color: inherit;
   border-radius: 20px;
   padding: 14px;
-  min-height: 340px;
+  min-height: 260px;
   transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .day-card--month {
-  min-height: 170px;
+  min-height: 164px;
 }
 
 .day-card--outside {
@@ -461,7 +461,7 @@ textarea {
 
 .day-events {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 8px;
 }
 
@@ -471,9 +471,10 @@ textarea {
 
 .event-chip {
   border-radius: 16px;
-  padding: 10px;
+  padding: 10px 10px 10px 12px;
   display: grid;
   gap: 4px;
+  border-left: 4px solid rgba(26, 115, 232, 0.3);
 }
 
 .event-chip__time {
@@ -495,6 +496,16 @@ textarea {
   line-height: 1.4;
 }
 
+.event-chip--more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  color: var(--accent);
+  font-weight: 650;
+  border-style: dashed;
+}
+
 .empty-day,
 .empty-state {
   color: var(--muted);
@@ -510,11 +521,31 @@ textarea {
 .sidebar {
   display: grid;
   gap: 14px;
+  position: sticky;
+  top: 16px;
 }
 
 .panel {
   border-radius: 20px;
   padding: 16px;
+}
+
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.button-danger--small {
+  padding: 9px 12px;
+  font-size: 0.88rem;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 18px;
+  flex-wrap: wrap;
 }
 
 .panel-title {
@@ -606,6 +637,10 @@ textarea {
 
   .nav-actions > * {
     flex: 1 1 auto;
+  }
+
+  .sidebar {
+    position: static;
   }
 }
 

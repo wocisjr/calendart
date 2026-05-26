@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createEvent, getOrCreateWorkspaceCalendar, shareCalendarAccess } from "./actions";
+import { createEvent, getOrCreateWorkspaceCalendar, removeCalendarMember, shareCalendarAccess } from "./actions";
 import { LogoutButton } from "@/app/logout-button";
 
 type WorkspaceCalendar = Prisma.CalendarGetPayload<{
@@ -122,6 +122,16 @@ function formatAddedAt(date: Date) {
   }).format(date);
 }
 
+function formatMemberLabel(member: WorkspaceCalendar["members"][number]) {
+  return member.user.username || member.user.name || member.user.email || "Neznámý";
+}
+
+function formatMemberRole(role: string) {
+  if (role === "OWNER") return "Vlastník";
+  if (role === "EDITOR") return "Editor";
+  return "Pouze čtení";
+}
+
 function groupByDay(events: WorkspaceEvent[]) {
   return events.reduce<Record<string, WorkspaceEvent[]>>((acc, event) => {
     const key = toDayKey(new Date(event.startsAt));
@@ -179,6 +189,7 @@ export default async function DashboardPage({
     calendarData.ownerId === session.user.id ||
     Boolean(userMembership);
   const canManage = session.user.role === "ADMIN" || userMembership?.role === "OWNER" || userMembership?.role === "EDITOR";
+  const canAdminister = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
 
   if (!isAllowed) {
     return (
@@ -249,9 +260,6 @@ export default async function DashboardPage({
         </div>
         <div className="nav-actions">
           <span className="badge">{memberCount} členů</span>
-          <Link className="button-ghost" href="/">
-            Domů
-          </Link>
           <LogoutButton />
         </div>
       </header>
@@ -282,82 +290,6 @@ export default async function DashboardPage({
       </section>
 
       <section className="calendar-layout">
-        <div className="calendar-board">
-          {view === "month" ? (
-            <div className="month-grid">
-              {monthGridDays.map((day) => {
-                const dayKey = toDayKey(day);
-                const dayEvents = eventsByDay[dayKey] ?? [];
-                const isSelected = dayKey === selectedDayKey;
-                const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
-
-                return (
-                  <Link
-                    key={dayKey}
-                    href={makeViewHref(day, "month")}
-                    className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isOutsideMonth ? "day-card--outside" : ""}`}
-                  >
-                    <div className="day-head">
-                      <div>
-                        <div className="day-label">{formatDayTitle(day)}</div>
-                      </div>
-                      <span className="day-number">{day.getDate()}</span>
-                    </div>
-
-                    <div className="day-events day-events--month">
-                      {dayEvents.slice(0, 4).map((event) => (
-                        <article className="event-chip" key={event.id}>
-                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
-                          <div className="event-chip__title">{event.title}</div>
-                          <div className="event-chip__meta">
-                            {event.createdBy.name || event.createdBy.email || "Neznámý"} · {formatTime(new Date(event.createdAt))}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="week-grid">
-              {weekDays.map((day) => {
-                const dayKey = toDayKey(day);
-                const dayEvents = eventsByDay[dayKey] ?? [];
-                const isSelected = dayKey === selectedDayKey;
-
-                return (
-                  <Link
-                    key={dayKey}
-                    href={makeViewHref(day, "week")}
-                    className={`day-card ${isSelected ? "day-card--selected" : ""}`}
-                  >
-                    <div className="day-head">
-                      <div>
-                        <div className="day-label">{formatDayTitle(day)}</div>
-                        <div className="muted">{dayEvents.length} událostí</div>
-                      </div>
-                      <span className="day-number">{day.getDate()}</span>
-                    </div>
-
-                    <div className="day-events">
-                      {dayEvents.slice(0, 4).map((event) => (
-                        <article className="event-chip" key={event.id}>
-                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
-                          <div className="event-chip__title">{event.title}</div>
-                          <div className="event-chip__meta">
-                            {event.createdBy.name || event.createdBy.email || "Neznámý"} · {formatTime(new Date(event.createdAt))}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         <aside className="sidebar">
           <section className="panel">
             <div className="panel-title">Vybraný den</div>
@@ -374,13 +306,14 @@ export default async function DashboardPage({
                     {event.location ? <div className="muted">{event.location}</div> : null}
                     {event.description ? <div className="copy">{event.description}</div> : null}
                     <div className="event-meta">
-                      Přidal {event.createdBy.name || event.createdBy.email || "Neznámý"} dne {formatAddedAt(new Date(event.createdAt))}
+                      Přidal {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"} dne{" "}
+                      {formatAddedAt(new Date(event.createdAt))}
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <div className="empty-state">Pro tento den zatím není žádná událost.</div>
+              <div className="empty-state">&nbsp;</div>
             )}
           </section>
 
@@ -429,7 +362,7 @@ export default async function DashboardPage({
           <section className="panel">
             <div className="panel-title">Sdílet přístup</div>
             <div className="muted" style={{ marginBottom: 12 }}>
-              Pozvi lidi do sdíleného pracovního kalendáře na email.
+              Přidej uživatele do sdíleného kalendáře podle e-mailu.
             </div>
             <form className="form-grid" action={shareCalendarAccess}>
               <div>
@@ -456,18 +389,115 @@ export default async function DashboardPage({
           <section className="panel">
             <div className="panel-title">Členové</div>
             <div className="member-list">
-              {calendarData.members.map((member) => (
-                <article className="member-pill" key={member.id}>
-                  <div>
-                    <strong>{member.user.name || member.user.email || "Neznámý"}</strong>
-                    <div className="muted">{member.user.email}</div>
-                  </div>
-                  <span className="badge">{member.role}</span>
-                </article>
-              ))}
+              {calendarData.members.map((member) => {
+                const isOwner = member.userId === calendarData.ownerId;
+                const canRemove = canAdminister && !isOwner;
+
+                return (
+                  <article className="member-pill" key={member.id}>
+                    <div>
+                      <strong>{formatMemberLabel(member)}</strong>
+                      <div className="muted">{member.user.email || "Bez e-mailu"}</div>
+                    </div>
+                    <div className="member-actions">
+                      <span className="badge">{formatMemberRole(member.role)}</span>
+                      {canRemove ? (
+                        <form action={removeCalendarMember}>
+                          <input type="hidden" name="memberId" value={member.id} />
+                          <button className="button-danger button-danger--small" type="submit">
+                            Odebrat
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         </aside>
+
+        <div className="calendar-board">
+          {view === "month" ? (
+            <div className="month-grid">
+              {monthGridDays.map((day) => {
+                const dayKey = toDayKey(day);
+                const dayEvents = eventsByDay[dayKey] ?? [];
+                const isSelected = dayKey === selectedDayKey;
+                const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
+                const visibleEvents = dayEvents.slice(0, 3);
+                const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
+
+                return (
+                  <Link
+                    key={dayKey}
+                    href={makeViewHref(day, "month")}
+                    className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isOutsideMonth ? "day-card--outside" : ""}`}
+                  >
+                    <div className="day-head">
+                      <div>
+                        <div className="day-label">{formatDayTitle(day)}</div>
+                      </div>
+                      <span className="day-number">{day.getDate()}</span>
+                    </div>
+
+                    <div className="day-events day-events--month">
+                      {visibleEvents.map((event) => (
+                        <article className="event-chip" key={event.id}>
+                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                          <div className="event-chip__title">{event.title}</div>
+                          <div className="event-chip__meta">
+                            {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
+                          </div>
+                        </article>
+                      ))}
+                      {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="week-grid">
+              {weekDays.map((day) => {
+                const dayKey = toDayKey(day);
+                const dayEvents = eventsByDay[dayKey] ?? [];
+                const isSelected = dayKey === selectedDayKey;
+                const visibleEvents = dayEvents.slice(0, 3);
+                const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
+
+                return (
+                  <Link
+                    key={dayKey}
+                    href={makeViewHref(day, "week")}
+                    className={`day-card ${isSelected ? "day-card--selected" : ""}`}
+                  >
+                    <div className="day-head">
+                      <div>
+                        <div className="day-label">{formatDayTitle(day)}</div>
+                        <div className="muted">{dayEvents.length} událostí</div>
+                      </div>
+                      <span className="day-number">{day.getDate()}</span>
+                    </div>
+
+                    <div className="day-events">
+                      {visibleEvents.map((event) => (
+                        <article className="event-chip" key={event.id}>
+                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                          <div className="event-chip__title">{event.title}</div>
+                          <div className="event-chip__meta">
+                            {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
+                          </div>
+                        </article>
+                      ))}
+                      {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

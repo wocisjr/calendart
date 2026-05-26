@@ -4,18 +4,15 @@ export default function VerifyRequestPage() {
   return (
     <main className="shell login-wrap">
       <section className="login-card">
-        <span className="kicker">Zkontroluj email</span>
-        <h1>Link jsme poslali do schránky.</h1>
+        <span className="kicker">Přihlášení</span>
+        <h1>Tahle stránka už není potřeba.</h1>
         <p className="hint">
-          Otevři email a klikni na magic link. Po ověření tě vrátíme zpátky do kalendáře.
+          Kalendář teď používá uživatelské jméno a heslo, takže stačí jít na přihlášení a zadat svoje údaje.
         </p>
 
         <div style={{ marginTop: 18 }} className="nav-actions">
-          <Link className="button-accent" href="/">
-            Zpět
-          </Link>
-          <Link className="button-ghost" href="/login">
-            Poslat znovu
+          <Link className="button-accent" href="/login">
+            Na přihlášení
           </Link>
         </div>
       </section>
