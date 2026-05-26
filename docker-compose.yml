@@ -38,7 +38,7 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     ports:
       - "3000:3000"
-    command: sh -c "npx prisma db push && npm start"
+    command: sh -c "npx prisma db push --schema=/app/prisma/schema.prisma && npm start"
 
 volumes:
   mysql_data_v2:
