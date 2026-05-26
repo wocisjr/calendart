@@ -65,11 +65,24 @@ Important variables in `.env`:
 ## Notes
 
 - Magic link login uses the SMTP server from `EMAIL_SERVER`.
+- For local development, keep `EMAIL_SERVER` pointed at Mailpit.
+- For production, point `EMAIL_SERVER` at Resend SMTP and set `EMAIL_FROM` to a verified sender on your domain.
 - `ADMIN_EMAILS` promotes matching accounts to admin role.
 - Sessions stay valid for 30 days by default.
 - Login is intentionally handled inside the app UI, but the auth backend stays in NextAuth.
 - On container startup, the app runs `prisma db push` so the database tables are created automatically.
 - `NEXTAUTH_URL` must match the exact browser URL you use to open the app. If you access it via an IP address or a domain, use that instead of `localhost`.
+
+### Resend SMTP
+
+Resend works here through plain SMTP, so you do not need to change the app code.
+
+Example production values:
+
+```env
+EMAIL_SERVER="smtps://resend:re_XXXXXXXXXXXXXXXXXXXXXXXX@smtp.resend.com:465"
+EMAIL_FROM="Calendar Thingy <no-reply@yourdomain.tld>"
+```
 
 ## Troubleshooting
 
