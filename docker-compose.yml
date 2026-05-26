@@ -25,8 +25,10 @@ services:
   app:
     build: .
     depends_on:
-      - db
-      - mailpit
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DATABASE_URL: ${DATABASE_URL:-mysql://calendar:calendar@db:3306/calendar}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
@@ -36,6 +38,7 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     ports:
       - "3000:3000"
+    command: sh -c "npx prisma db push && npm start"
 
 volumes:
   mysql_data_v2:

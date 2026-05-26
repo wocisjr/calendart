@@ -68,6 +68,7 @@ Important variables in `.env`:
 - `ADMIN_EMAILS` promotes matching accounts to admin role.
 - Sessions stay valid for 30 days by default.
 - Login is intentionally handled inside the app UI, but the auth backend stays in NextAuth.
+- On container startup, the app runs `prisma db push` so the database tables are created automatically.
 
 ## Troubleshooting
 
