@@ -117,6 +117,43 @@ export async function createEvent(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function removeEvent(formData: FormData) {
+  const user = await requireUser();
+  const eventId = String(formData.get("eventId") ?? "");
+
+  if (!eventId) {
+    return;
+  }
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      calendar: {
+        include: {
+          members: true
+        }
+      }
+    }
+  });
+
+  if (!event) {
+    return;
+  }
+
+  const membership = event.calendar.members.find((member) => member.userId === user.id);
+  const canManage = user.role === "ADMIN" || membership?.role === "OWNER" || membership?.role === "EDITOR";
+
+  if (!canManage) {
+    return;
+  }
+
+  await prisma.event.delete({
+    where: { id: eventId }
+  });
+
+  revalidatePath("/dashboard");
+}
+
 export async function removeCalendarMember(formData: FormData) {
   const user = await requireUser();
   const memberId = String(formData.get("memberId") ?? "");
@@ -141,6 +178,39 @@ export async function removeCalendarMember(formData: FormData) {
 
   await prisma.calendarMember.delete({
     where: { id: memberId }
+  });
+
+  revalidatePath("/dashboard");
+}
+
+export async function updateCalendarMemberRole(formData: FormData) {
+  const user = await requireUser();
+  const memberId = String(formData.get("memberId") ?? "");
+  const role = String(formData.get("role") ?? "");
+
+  if (!memberId || !role || (role !== "VIEWER" && role !== "EDITOR")) {
+    return;
+  }
+
+  const calendar = await getWorkspaceCalendar();
+  const membership = calendar.members.find((member) => member.userId === user.id);
+  const canManage = user.role === "ADMIN" || membership?.role === "OWNER";
+
+  if (!canManage) {
+    return;
+  }
+
+  const targetMember = calendar.members.find((member) => member.id === memberId);
+
+  if (!targetMember || targetMember.userId === calendar.ownerId) {
+    return;
+  }
+
+  await prisma.calendarMember.update({
+    where: { id: memberId },
+    data: {
+      role
+    }
   });
 
   revalidatePath("/dashboard");

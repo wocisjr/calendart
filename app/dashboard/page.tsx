@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createEvent, getOrCreateWorkspaceCalendar, removeCalendarMember } from "./actions";
+import { createEvent, getOrCreateWorkspaceCalendar, removeCalendarMember, removeEvent, updateCalendarMemberRole } from "./actions";
 import { LogoutButton } from "@/app/logout-button";
 
 type WorkspaceCalendar = Prisma.CalendarGetPayload<{
@@ -299,7 +299,17 @@ export default async function DashboardPage({
                   <article className="event-item" key={event.id}>
                     <div className="event-item__top">
                       <strong>{event.title}</strong>
-                      <span className="badge">{formatTime(new Date(event.startsAt))}</span>
+                      <div className="event-item__actions">
+                        <span className="badge">{formatTime(new Date(event.startsAt))}</span>
+                        {canManage ? (
+                          <form action={removeEvent}>
+                            <input type="hidden" name="eventId" value={event.id} />
+                            <button className="button-danger button-danger--small" type="submit">
+                              Smazat
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
                     </div>
                     {event.location ? <div className="muted">{event.location}</div> : null}
                     {event.description ? <div className="copy">{event.description}</div> : null}
@@ -363,6 +373,7 @@ export default async function DashboardPage({
               {calendarData.members.map((member) => {
                 const isOwner = member.userId === calendarData.ownerId;
                 const canRemove = canAdminister && !isOwner;
+                const canEditRole = canAdminister && !isOwner;
 
                 return (
                   <article className="member-pill" key={member.id}>
@@ -371,7 +382,20 @@ export default async function DashboardPage({
                       <div className="muted">{member.user.email || "Bez e-mailu"}</div>
                     </div>
                     <div className="member-actions">
-                      <span className="badge">{formatMemberRole(member.role)}</span>
+                      {canEditRole ? (
+                        <form className="member-role-form" action={updateCalendarMemberRole}>
+                          <input type="hidden" name="memberId" value={member.id} />
+                          <select className="select member-role-select" name="role" defaultValue={member.role}>
+                            <option value="VIEWER">Pouze čtení</option>
+                            <option value="EDITOR">Editor</option>
+                          </select>
+                          <button className="button-ghost button-ghost--compact" type="submit">
+                            Uložit
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="badge">{formatMemberRole(member.role)}</span>
+                      )}
                       {canRemove ? (
                         <form action={removeCalendarMember}>
                           <input type="hidden" name="memberId" value={member.id} />

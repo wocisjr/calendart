@@ -534,11 +534,30 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .button-danger--small {
   padding: 9px 12px;
   font-size: 0.88rem;
+}
+
+.button-ghost--compact {
+  padding: 9px 12px;
+}
+
+.member-role-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.member-role-select {
+  width: auto;
+  min-width: 140px;
 }
 
 .mode-switch {
@@ -579,6 +598,14 @@ textarea {
   align-items: start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.event-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .member-list {
