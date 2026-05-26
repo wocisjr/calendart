@@ -1,7 +1,6 @@
 services:
   db:
     image: mysql:8.4
-    command: ["--default-authentication-plugin=mysql_native_password"]
     environment:
       MYSQL_DATABASE: calendar
       MYSQL_USER: calendar
@@ -10,7 +9,12 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_v2:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   mailpit:
     image: axllent/mailpit:latest
@@ -34,4 +38,4 @@ services:
       - "3000:3000"
 
 volumes:
-  mysql_data:
+  mysql_data_v2:
