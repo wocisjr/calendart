@@ -108,6 +108,16 @@ function formatDayTitle(date: Date) {
   }).format(date);
 }
 
+function formatDayLabel(date: Date) {
+  return new Intl.DateTimeFormat("cs-CZ", {
+    weekday: "short"
+  }).format(date);
+}
+
+function isSameDay(left: Date, right: Date) {
+  return toDayKey(left) === toDayKey(right);
+}
+
 function formatTime(date: Date) {
   return new Intl.DateTimeFormat("cs-CZ", {
     hour: "2-digit",
@@ -241,6 +251,8 @@ export default async function DashboardPage({
   const monthGridStart = startOfWeek(startOfMonth(selectedDate));
   const monthGridDays = Array.from({ length: 42 }, (_, index) => addDays(monthGridStart, index));
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(rangeStart, index));
+  const today = new Date();
+  const weekDayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 
   return (
     <main className="shell">
@@ -263,27 +275,40 @@ export default async function DashboardPage({
       </header>
 
       <section className="toolbar">
-        <div>
-          <div className="toolbar-title">{view === "month" ? "Měsíční pohled" : "Týdenní pohled"}</div>
+        <div className="toolbar-left">
+          <div className="toolbar-title">{view === "month" ? "Měsíc" : "Týden"}</div>
           <div className="muted">{viewLabel}</div>
         </div>
 
-        <div className="nav-actions">
-          <Link className="button-ghost" href={makeViewHref(prevRangeDate, view)}>
-            {view === "month" ? "Předchozí měsíc" : "Předchozí týden"}
+        <div className="toolbar-center">
+          <Link className="button-ghost button-ghost--compact" href={makeViewHref(prevRangeDate, view)} aria-label="Předchozí období">
+            ‹
           </Link>
           <Link className="button-ghost" href={makeViewHref(new Date(), view)}>
             Dnes
           </Link>
-          <Link className="button-ghost" href={makeViewHref(nextRangeDate, view)}>
-            {view === "month" ? "Další měsíc" : "Další týden"}
+          <Link className="button-ghost button-ghost--compact" href={makeViewHref(nextRangeDate, view)} aria-label="Další období">
+            ›
           </Link>
-          <Link className={`button-ghost ${view === "week" ? "button-ghost--active" : ""}`} href={makeViewHref(selectedDate, "week")}>
-            Týden
-          </Link>
-          <Link className={`button-ghost ${view === "month" ? "button-ghost--active" : ""}`} href={makeViewHref(selectedDate, "month")}>
-            Měsíc
-          </Link>
+        </div>
+
+        <div className="toolbar-right">
+          <div className="mode-switch" role="tablist" aria-label="Přepnout pohled">
+            <Link
+              className={`button-ghost button-ghost--segmented ${view === "week" ? "button-ghost--active" : ""}`}
+              href={makeViewHref(selectedDate, "week")}
+              aria-current={view === "week" ? "page" : undefined}
+            >
+              Týden
+            </Link>
+            <Link
+              className={`button-ghost button-ghost--segmented ${view === "month" ? "button-ghost--active" : ""}`}
+              href={makeViewHref(selectedDate, "month")}
+              aria-current={view === "month" ? "page" : undefined}
+            >
+              Měsíc
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -414,82 +439,103 @@ export default async function DashboardPage({
 
         <div className="calendar-board">
           {view === "month" ? (
-            <div className="month-grid">
-              {monthGridDays.map((day) => {
-                const dayKey = toDayKey(day);
-                const dayEvents = eventsByDay[dayKey] ?? [];
-                const isSelected = dayKey === selectedDayKey;
-                const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
-                const visibleEvents = dayEvents.slice(0, 3);
-                const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
+            <div className="calendar-frame">
+              <div className="calendar-weekdays calendar-weekdays--month" aria-hidden="true">
+                {weekDayLabels.map((label) => (
+                  <div key={label} className="calendar-weekday">
+                    {label}
+                  </div>
+                ))}
+              </div>
+              <div className="month-grid">
+                {monthGridDays.map((day) => {
+                  const dayKey = toDayKey(day);
+                  const dayEvents = eventsByDay[dayKey] ?? [];
+                  const isSelected = dayKey === selectedDayKey;
+                  const isToday = isSameDay(day, today);
+                  const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
+                  const visibleEvents = dayEvents.slice(0, 3);
+                  const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
 
-                return (
-                  <Link
-                    key={dayKey}
-                    href={makeViewHref(day, "month")}
-                    className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isOutsideMonth ? "day-card--outside" : ""}`}
-                  >
-                    <div className="day-head">
-                      <div>
-                        <div className="day-label">{formatDayTitle(day)}</div>
+                  return (
+                    <Link
+                      key={dayKey}
+                      href={makeViewHref(day, "month")}
+                      className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isToday ? "day-card--today" : ""} ${
+                        isOutsideMonth ? "day-card--outside" : ""
+                      }`}
+                    >
+                      <div className="day-head">
+                        <div className="day-label">{formatDayLabel(day)}</div>
+                        <span className="day-number">{day.getDate()}</span>
                       </div>
-                      <span className="day-number">{day.getDate()}</span>
-                    </div>
 
-                    <div className="day-events day-events--month">
-                      {visibleEvents.map((event) => (
-                        <article className="event-chip" key={event.id}>
-                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
-                          <div className="event-chip__title">{event.title}</div>
-                          <div className="event-chip__meta">
-                            {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
-                          </div>
-                        </article>
-                      ))}
-                      {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
-                    </div>
-                  </Link>
-                );
-              })}
+                      <div className="day-events day-events--month">
+                        {visibleEvents.map((event) => (
+                          <article className="event-chip" key={event.id}>
+                            <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                            <div className="event-chip__title">{event.title}</div>
+                            <div className="event-chip__meta">
+                              {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
+                            </div>
+                          </article>
+                        ))}
+                        {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           ) : (
-            <div className="week-grid">
-              {weekDays.map((day) => {
-                const dayKey = toDayKey(day);
-                const dayEvents = eventsByDay[dayKey] ?? [];
-                const isSelected = dayKey === selectedDayKey;
-                const visibleEvents = dayEvents.slice(0, 3);
-                const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
+            <div className="calendar-frame">
+              <div className="calendar-weekdays" aria-hidden="true">
+                {weekDays.map((day) => (
+                  <div key={toDayKey(day)} className="calendar-weekday">
+                    <div>{formatDayLabel(day)}</div>
+                    <strong>{day.getDate()}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="week-grid">
+                {weekDays.map((day) => {
+                  const dayKey = toDayKey(day);
+                  const dayEvents = eventsByDay[dayKey] ?? [];
+                  const isSelected = dayKey === selectedDayKey;
+                  const isToday = isSameDay(day, today);
+                  const visibleEvents = dayEvents.slice(0, 4);
+                  const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
 
-                return (
-                  <Link
-                    key={dayKey}
-                    href={makeViewHref(day, "week")}
-                    className={`day-card ${isSelected ? "day-card--selected" : ""}`}
-                  >
-                    <div className="day-head">
-                      <div>
-                        <div className="day-label">{formatDayTitle(day)}</div>
-                        <div className="muted">{dayEvents.length} událostí</div>
+                  return (
+                    <Link
+                      key={dayKey}
+                      href={makeViewHref(day, "week")}
+                      className={`day-card ${isSelected ? "day-card--selected" : ""} ${isToday ? "day-card--today" : ""}`}
+                    >
+                      <div className="day-head">
+                        <div>
+                          <div className="day-label">{formatDayTitle(day)}</div>
+                          <div className="muted">{dayEvents.length} událostí</div>
+                        </div>
+                        <span className="day-number">{day.getDate()}</span>
                       </div>
-                      <span className="day-number">{day.getDate()}</span>
-                    </div>
 
-                    <div className="day-events">
-                      {visibleEvents.map((event) => (
-                        <article className="event-chip" key={event.id}>
-                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
-                          <div className="event-chip__title">{event.title}</div>
-                          <div className="event-chip__meta">
-                            {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
-                          </div>
-                        </article>
-                      ))}
-                      {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
-                    </div>
-                  </Link>
-                );
-              })}
+                      <div className="day-events">
+                        {visibleEvents.map((event) => (
+                          <article className="event-chip" key={event.id}>
+                            <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                            <div className="event-chip__title">{event.title}</div>
+                            <div className="event-chip__meta">
+                              {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
+                            </div>
+                          </article>
+                        ))}
+                        {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
