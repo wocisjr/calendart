@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createEvent, getOrCreateWorkspaceCalendar, removeCalendarMember, shareCalendarAccess } from "./actions";
+import { createEvent, getOrCreateWorkspaceCalendar, removeCalendarMember } from "./actions";
 import { LogoutButton } from "@/app/logout-button";
 
 type WorkspaceCalendar = Prisma.CalendarGetPayload<{
@@ -195,11 +195,9 @@ export default async function DashboardPage({
     return (
       <main className="shell">
         <section className="panel" style={{ maxWidth: 560, margin: "80px auto 0" }}>
-          <div className="panel-title">Přístup čeká</div>
-          <h1 className="panel-heading">Ještě nejsi ve sdíleném kalendáři.</h1>
-          <p className="copy">
-            Požádej vlastníka nebo administrátora, aby ti sdílel přístup na tvůj email a pak se přihlaš znovu.
-          </p>
+          <div className="panel-title">Přístup omezen</div>
+          <h1 className="panel-heading">Nemáš přístup do pracovního kalendáře.</h1>
+          <p className="copy">Požádej administrátora, aby ti přístup vrátil.</p>
           <div className="nav-actions" style={{ marginTop: 16 }}>
             <Link className="button-ghost" href="/login">
               Zpět na přihlášení
@@ -355,33 +353,6 @@ export default async function DashboardPage({
               </div>
               <button className="button-accent" type="submit" disabled={!canManage}>
                 {canManage ? "Přidat událost" : "Jen pro čtení"}
-              </button>
-            </form>
-          </section>
-
-          <section className="panel">
-            <div className="panel-title">Sdílet přístup</div>
-            <div className="muted" style={{ marginBottom: 12 }}>
-              Přidej uživatele do sdíleného kalendáře podle e-mailu.
-            </div>
-            <form className="form-grid" action={shareCalendarAccess}>
-              <div>
-                <label className="label" htmlFor="share-email">
-                  E-mail
-                </label>
-                <input id="share-email" name="email" className="field" type="email" placeholder="jmeno@firma.cz" required />
-              </div>
-              <div>
-                <label className="label" htmlFor="share-role">
-                  Úroveň přístupu
-                </label>
-                <select id="share-role" name="role" className="select" defaultValue="VIEWER">
-                  <option value="VIEWER">Čtení</option>
-                  <option value="EDITOR">Úpravy</option>
-                </select>
-              </div>
-              <button className="button-ghost" type="submit" disabled={!canManage}>
-                {canManage ? "Sdílet přístup" : "Jen vlastník"}
               </button>
             </form>
           </section>

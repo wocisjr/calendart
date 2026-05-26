@@ -18,7 +18,7 @@ export default function LoginPage() {
   const hint =
     mode === "login"
       ? "Použij svoje uživatelské jméno a heslo."
-      : "Při prvním použití si tady založíš účet. E-mail je volitelný, ale hodí se pro přiřazení sdílení a pro přechod ze starého účtu.";
+      : "Při prvním použití si tady založíš účet. E-mail je volitelný, ale hodí se jako kontakt a pro přechod ze starého účtu.";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,12 +36,12 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-          setError(
-            mode === "login"
-              ? "Přihlášení selhalo. Zkontroluj jméno a heslo."
-              : "Registrace selhala. Zkus jiné jméno nebo jiný e-mail."
-          );
-          return;
+        setError(
+          mode === "login"
+            ? "Přihlášení selhalo. Zkontroluj jméno a heslo."
+            : "Registrace selhala. Zkus jiné jméno nebo jiný e-mail."
+        );
+        return;
       }
 
       window.location.href = result?.url ?? "/dashboard";

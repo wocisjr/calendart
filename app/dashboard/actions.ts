@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { randomUUID } from "crypto";
 
 async function requireUser() {
   const session = await getServerSession(authOptions);
@@ -114,63 +113,6 @@ export async function createEvent(formData: FormData) {
       createdById: user.id
     }
   });
-
-  revalidatePath("/dashboard");
-}
-
-export async function shareCalendarAccess(formData: FormData) {
-  const user = await requireUser();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const role = String(formData.get("role") ?? "VIEWER");
-
-  if (!email) {
-    return;
-  }
-
-  const calendar = await getWorkspaceCalendar();
-  const membership = calendar.members.find((member) => member.userId === user.id);
-  const canShare = user.role === "ADMIN" || membership?.role === "OWNER" || membership?.role === "EDITOR";
-
-  if (!canShare) {
-    return;
-  }
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email }
-  });
-
-  if (existingUser) {
-    await prisma.calendarMember.upsert({
-      where: {
-        calendarId_userId: {
-          calendarId: calendar.id,
-          userId: existingUser.id
-        }
-      },
-      create: {
-        calendarId: calendar.id,
-        userId: existingUser.id,
-        role: role === "EDITOR" ? "EDITOR" : "VIEWER"
-      },
-      update: {
-        role: role === "EDITOR" ? "EDITOR" : "VIEWER"
-      }
-    });
-  } else {
-    const token = randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-    await prisma.invite.create({
-      data: {
-        email,
-        token,
-        role: role === "EDITOR" ? "EDITOR" : "VIEWER",
-        calendarId: calendar.id,
-        invitedById: user.id,
-        expiresAt
-      }
-    });
-  }
 
   revalidatePath("/dashboard");
 }

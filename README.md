@@ -39,9 +39,8 @@ Then open `http://localhost:3000`.
 
 - Open `/login`
 - Enter your username and password
-- If you're creating a new account, switch to the register mode and optionally add an email for invite matching
+- If you're creating a new account, switch to the register mode and optionally add an email as a contact field
 - If you already had an old account, use register once with the same email to set your username and password
-- If an admin already shared the calendar with your email, the access is applied after you register or sign in
 
 ## Production-ish run
 
@@ -62,6 +61,8 @@ Important variables in `.env`:
 ## Notes
 
 - `ADMIN_EMAILS` promotes matching accounts to admin role.
+- Every new registered account is added to the single shared workspace automatically.
+- Admins can remove members from the workspace directly in the UI.
 - Sessions stay valid for 30 days by default.
 - Login is intentionally handled inside the app UI, but the auth backend stays in NextAuth.
 - On container startup, the app runs `prisma db push` so the database tables are created automatically.
