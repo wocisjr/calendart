@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mysql:8.4
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_DATABASE: calendar
+      MYSQL_USER: calendar
+      MYSQL_PASSWORD: calendar
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  app:
+    build: .
+    depends_on:
+      - db
+      - mailpit
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-mysql://calendar:calendar@db:3306/calendar}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-to-a-long-random-string}
+      EMAIL_SERVER: ${EMAIL_SERVER:-smtp://mailpit:1025}
+      EMAIL_FROM: ${EMAIL_FROM:-Calendar Thingy <no-reply@calendar.local>}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  mysql_data:

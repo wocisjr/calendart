@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum CalendarRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum EventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+enum EventVisibility {
+  PRIVATE
+  SHARED
+  PUBLIC
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model User {
+  id              String             @id @default(cuid())
+  name            String?
+  email           String?            @unique
+  emailVerified   DateTime?
+  image           String?
+  role            UserRole           @default(USER)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  accounts        Account[]
+  sessions        Session[]
+  calendars       Calendar[]         @relation("CalendarOwner")
+  memberships     CalendarMember[]
+  createdEvents   Event[]            @relation("CreatedEvents")
+  participants    EventParticipant[]
+  invitesSent     Invite[]           @relation("InvitesSent")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider         String
+  providerAccountId String
+  refresh_token    String?  @db.Text
+  access_token     String?  @db.Text
+  expires_at       Int?
+  token_type       String?
+  scope            String?
+  id_token         String?  @db.Text
+  session_state    String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Calendar {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String?         @unique
+  description String?
+  color       String          @default("#0f766e")
+  timezone    String          @default("Europe/Prague")
+  ownerId     String
+  owner       User            @relation("CalendarOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     CalendarMember[]
+  events      Event[]
+  invites     Invite[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([ownerId])
+}
+
+model CalendarMember {
+  id         String       @id @default(cuid())
+  calendarId String
+  userId     String
+  role       CalendarRole  @default(VIEWER)
+  calendar   Calendar     @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+
+  @@unique([calendarId, userId])
+  @@index([userId])
+}
+
+model Event {
+  id           String          @id @default(cuid())
+  calendarId   String
+  title        String
+  description  String?
+  location     String?
+  startsAt     DateTime
+  endsAt       DateTime
+  allDay       Boolean         @default(false)
+  status       EventStatus     @default(CONFIRMED)
+  visibility   EventVisibility @default(SHARED)
+  recurrenceRule String?
+  createdById  String
+  calendar     Calendar        @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  createdBy    User            @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Restrict)
+  participants EventParticipant[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([calendarId, startsAt])
+  @@index([createdById])
+}
+
+model EventParticipant {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    InviteStatus @default(PENDING)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model Invite {
+  id         String       @id @default(cuid())
+  email      String
+  token      String       @unique
+  status     InviteStatus @default(PENDING)
+  calendarId String?
+  invitedById String
+  calendar   Calendar?    @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  invitedBy  User         @relation("InvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime     @default(now())
+
+  @@index([email])
+  @@index([invitedById])
+}
