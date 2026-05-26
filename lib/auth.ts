@@ -47,6 +47,48 @@ export const authOptions: NextAuthOptions = {
           data: { role: "ADMIN" }
         });
       }
+
+      if (!user.email) {
+        return;
+      }
+
+      const invites = await prisma.invite.findMany({
+        where: {
+          email: user.email.toLowerCase(),
+          status: "PENDING",
+          expiresAt: {
+            gt: new Date()
+          }
+        }
+      });
+
+      for (const invite of invites) {
+        if (!invite.calendarId) {
+          continue;
+        }
+
+        await prisma.calendarMember.upsert({
+          where: {
+            calendarId_userId: {
+              calendarId: invite.calendarId,
+              userId: user.id
+            }
+          },
+          create: {
+            calendarId: invite.calendarId,
+            userId: user.id,
+            role: invite.role
+          },
+          update: {
+            role: invite.role
+          }
+        });
+
+        await prisma.invite.update({
+          where: { id: invite.id },
+          data: { status: "ACCEPTED" }
+        });
+      }
     }
   },
   secret: process.env.NEXTAUTH_SECRET

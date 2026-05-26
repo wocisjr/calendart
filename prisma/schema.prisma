@@ -164,6 +164,7 @@ model Invite {
   email      String
   token      String       @unique
   status     InviteStatus @default(PENDING)
+  role       CalendarRole @default(VIEWER)
   calendarId String?
   invitedById String
   calendar   Calendar?    @relation(fields: [calendarId], references: [id], onDelete: SetNull)

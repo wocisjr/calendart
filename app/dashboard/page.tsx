@@ -4,117 +4,188 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createCalendar, createEvent } from "./actions";
+import { createEvent, getOrCreateWorkspaceCalendar, shareCalendarAccess } from "./actions";
 import { LogoutButton } from "@/app/logout-button";
 
-type CalendarWithRelations = Prisma.CalendarGetPayload<{
+type WorkspaceCalendar = Prisma.CalendarGetPayload<{
   include: {
     owner: true;
-    events: {
+    members: {
       include: {
-        createdBy: true;
+        user: true;
       };
     };
   };
 }>;
 
-type EventWithCalendar = Prisma.EventGetPayload<{
+type WorkspaceEvent = Prisma.EventGetPayload<{
   include: {
-    calendar: true;
+    createdBy: true;
   };
 }>;
 
-function formatDate(value: Date) {
+function parseDateInput(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfWeek(date: Date) {
+  const result = new Date(date);
+  const day = result.getDay();
+  const offset = (day + 6) % 7;
+  result.setDate(result.getDate() - offset);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function toDayKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function toDateTimeLocal(date: Date, time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const result = new Date(date);
+  result.setHours(hours, minutes, 0, 0);
+  return result.toISOString().slice(0, 16);
+}
+
+function formatWeekLabel(start: Date, end: Date) {
+  const formatter = new Intl.DateTimeFormat("cs-CZ", {
+    day: "numeric",
+    month: "short"
+  });
+
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
+function formatDayTitle(date: Date) {
+  return new Intl.DateTimeFormat("cs-CZ", {
+    weekday: "short",
+    day: "numeric",
+    month: "short"
+  }).format(date);
+}
+
+function formatTime(date: Date) {
+  return new Intl.DateTimeFormat("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function formatAddedAt(date: Date) {
   return new Intl.DateTimeFormat("cs-CZ", {
     dateStyle: "medium",
     timeStyle: "short"
-  }).format(value);
+  }).format(date);
 }
 
-async function ensureDefaultCalendar(userId: string) {
-  const existing = await prisma.calendar.findFirst({
-    where: { ownerId: userId },
-    orderBy: { createdAt: "asc" }
-  });
-
-  if (existing) {
-    return existing;
-  }
-
-  return prisma.calendar.create({
-    data: {
-      name: "Personal",
-      description: "Default calendar",
-      ownerId: userId,
-      members: {
-        create: {
-          userId,
-          role: "OWNER"
-        }
-      }
-    }
-  });
+function groupByDay(events: WorkspaceEvent[]) {
+  return events.reduce<Record<string, WorkspaceEvent[]>>((acc, event) => {
+    const key = toDayKey(new Date(event.startsAt));
+    (acc[key] ??= []).push(event);
+    return acc;
+  }, {});
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams
+}: Readonly<{
+  searchParams?: Promise<{ day?: string }>;
+}>) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  await ensureDefaultCalendar(session.user.id);
-
-  const isAdmin = session.user.role === "ADMIN";
-
-  const calendars: CalendarWithRelations[] = await prisma.calendar.findMany({
-    where: isAdmin
-      ? {}
-      : {
-          OR: [
-            { ownerId: session.user.id },
-            { members: { some: { userId: session.user.id } } }
-          ]
-        },
+  const calendar = await getOrCreateWorkspaceCalendar(session.user.id);
+  const loadedCalendar = await prisma.calendar.findFirst({
+    where: { id: calendar.id },
     include: {
       owner: true,
-      events: {
-        orderBy: { startsAt: "asc" },
-        take: 5,
+      members: {
         include: {
-          createdBy: true
+          user: true
+        },
+        orderBy: {
+          createdAt: "asc"
         }
       }
-    },
-    orderBy: { updatedAt: "desc" }
+    }
   });
 
-  const upcomingEvents: EventWithCalendar[] = await prisma.event.findMany({
-    where: isAdmin
-      ? {}
-      : {
-          calendar: {
-            OR: [
-              { ownerId: session.user.id },
-              { members: { some: { userId: session.user.id } } }
-            ]
-          }
-        },
+  if (!loadedCalendar) {
+    throw new Error("Workspace calendar could not be initialized.");
+  }
+
+  const calendarData = loadedCalendar as WorkspaceCalendar;
+  const userMembership = calendarData.members.find((member) => member.userId === session.user.id);
+  const isAllowed =
+    session.user.role === "ADMIN" ||
+    calendarData.ownerId === session.user.id ||
+    Boolean(userMembership);
+  const canManage = session.user.role === "ADMIN" || userMembership?.role === "OWNER" || userMembership?.role === "EDITOR";
+
+  if (!isAllowed) {
+    return (
+      <main className="shell">
+        <section className="panel" style={{ maxWidth: 560, margin: "80px auto 0" }}>
+          <div className="panel-title">Access pending</div>
+          <h1 className="panel-heading">You are not yet on the shared calendar.</h1>
+          <p className="copy">
+            Ask the calendar owner or an admin to share access with your email, then sign in again.
+          </p>
+          <div className="nav-actions" style={{ marginTop: 16 }}>
+            <Link className="button-ghost" href="/login">
+              Back to login
+            </Link>
+            <LogoutButton />
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const selectedDate = parseDateInput(resolvedSearchParams.day) ?? new Date();
+  const weekStart = startOfWeek(selectedDate);
+  const weekEnd = addDays(weekStart, 7);
+
+  const events = await prisma.event.findMany({
+    where: {
+      calendarId: calendarData.id,
+      startsAt: {
+        gte: weekStart,
+        lt: weekEnd
+      }
+    },
     include: {
-      calendar: true
+      createdBy: true
     },
-    orderBy: { startsAt: "asc" },
-    take: 20
+    orderBy: [
+      { startsAt: "asc" },
+      { createdAt: "asc" }
+    ]
   });
 
-  const monthDays = Array.from({ length: 14 }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() + index - 2);
-    return date;
-  });
-
-  const calendarCount = calendars.length;
-  const eventCount = upcomingEvents.length;
+  const eventsByDay = groupByDay(events);
+  const selectedDayKey = toDayKey(selectedDate);
+  const selectedDayEvents = eventsByDay[selectedDayKey] ?? [];
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const selectedDayInput = toDateTimeLocal(selectedDate, "09:00");
+  const selectedDayEndInput = toDateTimeLocal(selectedDate, "10:00");
+  const memberCount = calendarData.members.length;
 
   return (
     <main className="shell">
@@ -124,14 +195,14 @@ export default async function DashboardPage() {
             <span>◫</span>
           </div>
           <div>
-            <div>Dashboard</div>
+            <div>Work calendar</div>
             <div className="muted" style={{ fontSize: "0.88rem" }}>
-              {session.user.email}
+              Shared team calendar
             </div>
           </div>
         </div>
         <div className="nav-actions">
-          <span className="badge">{session.user.role}</span>
+          <span className="badge">{memberCount} members</span>
           <Link className="button-ghost" href="/">
             Home
           </Link>
@@ -139,84 +210,98 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <section className="hero" style={{ marginBottom: 24 }}>
+      <section className="toolbar">
         <div>
-          <span className="kicker">Running in a container · MySQL · PWA</span>
-          <h1>Kalendář pro práci, bez zbytečné váhy.</h1>
-          <p className="hero-copy">
-            {isAdmin
-              ? "Jsi admin, takže vidíš celý tým. Tady můžeš rozšiřovat správu kalendářů, sdílení a eventy."
-              : "Tohle je tvoje pracovní plocha. Vlastní kalendáře, sdílené kalendáře a rychlé vytvoření eventu."}
-          </p>
+          <div className="toolbar-title">Week view</div>
+          <div className="muted">{formatWeekLabel(weekStart, weekEnd)}</div>
         </div>
-        <div className="hero-panel">
-          <div className="stat">
-            <strong>{calendarCount}</strong>
-            <span className="muted">kalendáře dostupné pro účet.</span>
-          </div>
-          <div className="stat">
-            <strong>{eventCount}</strong>
-            <span className="muted">nadcházejících eventů v systému.</span>
-          </div>
+
+        <div className="nav-actions">
+          <Link className="button-ghost" href={`/dashboard?day=${toDayKey(addDays(weekStart, -7))}`}>
+            Prev week
+          </Link>
+          <Link className="button-ghost" href={`/dashboard?day=${toDayKey(new Date())}`}>
+            Today
+          </Link>
+          <Link className="button-ghost" href={`/dashboard?day=${toDayKey(addDays(weekStart, 7))}`}>
+            Next week
+          </Link>
         </div>
       </section>
 
-      <section className="page-grid">
-        <div className="stack">
-          <article className="section">
-            <h2>New calendar</h2>
-            <form className="form-grid" action={createCalendar}>
-              <div>
-                <label className="label" htmlFor="calendar-name">
-                  Name
-                </label>
-                <input id="calendar-name" name="name" className="field" placeholder="Team calendar" required />
-              </div>
-              <div>
-                <label className="label" htmlFor="calendar-description">
-                  Description
-                </label>
-                <textarea
-                  id="calendar-description"
-                  name="description"
-                  className="textarea"
-                  placeholder="Optional description"
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="calendar-color">
-                  Color
-                </label>
-                <input
-                  id="calendar-color"
-                  name="color"
-                  className="field"
-                  type="color"
-                  defaultValue="#5ce1c7"
-                  style={{ padding: 6, height: 48, width: 88 }}
-                />
-              </div>
-              <button className="button-accent" type="submit">
-                Create calendar
-              </button>
-            </form>
-          </article>
+      <section className="calendar-layout">
+        <div className="calendar-board">
+          <div className="week-grid">
+            {weekDays.map((day) => {
+              const dayKey = toDayKey(day);
+              const dayEvents = eventsByDay[dayKey] ?? [];
+              const isSelected = dayKey === selectedDayKey;
 
-          <article className="section">
-            <h2>Quick event</h2>
-            <form className="form-grid" action={createEvent}>
-              <div>
-                <label className="label" htmlFor="calendarId">
-                  Calendar
-                </label>
-                <select id="calendarId" name="calendarId" className="select" required defaultValue={calendars[0]?.id}>
-                  {calendars.map((calendar) => (
-                    <option key={calendar.id} value={calendar.id}>
-                      {calendar.name}
-                    </option>
-                  ))}
-                </select>
+              return (
+                <Link
+                  key={dayKey}
+                  href={`/dashboard?day=${dayKey}`}
+                  className={`day-card ${isSelected ? "day-card--selected" : ""}`}
+                >
+                  <div className="day-head">
+                    <div>
+                      <div className="day-label">{formatDayTitle(day)}</div>
+                      <div className="muted">{dayEvents.length} events</div>
+                    </div>
+                    <span className="day-number">{day.getDate()}</span>
+                  </div>
+
+                  <div className="day-events">
+                    {dayEvents.length ? (
+                      dayEvents.slice(0, 4).map((event) => (
+                        <article className="event-chip" key={event.id}>
+                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                          <div className="event-chip__title">{event.title}</div>
+                          <div className="event-chip__meta">
+                            {event.createdBy.name || event.createdBy.email || "Unknown"} · {formatTime(new Date(event.createdAt))}
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <div className="empty-day">No events yet</div>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="sidebar">
+          <section className="panel">
+            <div className="panel-title">Selected day</div>
+            <h2 className="panel-heading">{formatDayTitle(selectedDate)}</h2>
+
+            {selectedDayEvents.length ? (
+              <div className="event-list">
+                {selectedDayEvents.map((event) => (
+                  <article className="event-item" key={event.id}>
+                    <div className="event-item__top">
+                      <strong>{event.title}</strong>
+                      <span className="badge">{formatTime(new Date(event.startsAt))}</span>
+                    </div>
+                    {event.location ? <div className="muted">{event.location}</div> : null}
+                    {event.description ? <div className="copy">{event.description}</div> : null}
+                    <div className="event-meta">
+                      Added by {event.createdBy.name || event.createdBy.email || "Unknown"} on {formatAddedAt(new Date(event.createdAt))}
+                    </div>
+                  </article>
+                ))}
               </div>
+            ) : (
+              <div className="empty-state">No events for this day.</div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="panel-title">Add event</div>
+            <form className="form-grid" action={createEvent}>
+              <input type="hidden" name="calendarId" value={calendarData.id} />
               <div>
                 <label className="label" htmlFor="event-title">
                   Title
@@ -228,105 +313,75 @@ export default async function DashboardPage() {
                   <label className="label" htmlFor="startsAt">
                     Start
                   </label>
-                  <input id="startsAt" name="startsAt" className="field" type="datetime-local" required />
+                  <input id="startsAt" name="startsAt" className="field" type="datetime-local" defaultValue={selectedDayInput} required />
                 </div>
                 <div>
                   <label className="label" htmlFor="endsAt">
                     End
                   </label>
-                  <input id="endsAt" name="endsAt" className="field" type="datetime-local" required />
+                  <input id="endsAt" name="endsAt" className="field" type="datetime-local" defaultValue={selectedDayEndInput} required />
                 </div>
               </div>
               <div>
                 <label className="label" htmlFor="event-location">
                   Location
                 </label>
-                <input id="event-location" name="location" className="field" placeholder="Room A / Google Meet" />
+                <input id="event-location" name="location" className="field" placeholder="Room A / Meet" />
               </div>
               <div>
                 <label className="label" htmlFor="event-description">
-                  Description
+                  Notes
                 </label>
                 <textarea id="event-description" name="description" className="textarea" placeholder="Optional notes" />
               </div>
-              <button className="button-accent" type="submit">
-                Create event
+              <button className="button-accent" type="submit" disabled={!canManage}>
+                {canManage ? "Add event" : "View only"}
               </button>
             </form>
-          </article>
-        </div>
-
-        <div className="stack">
-          <section className="section">
-            <h2>Month view</h2>
-            <div className="calendar-grid">
-              {monthDays.map((date) => {
-                const dayEvents = upcomingEvents.filter((event) => {
-                  const eventDate = new Date(event.startsAt);
-                  return eventDate.toDateString() === date.toDateString();
-                });
-
-                return (
-                  <div className="day" key={date.toISOString()}>
-                    <div className="day-head">
-                      <strong className="day-number">{date.getDate()}</strong>
-                      <span className="muted">{date.toLocaleDateString("cs-CZ", { weekday: "short" })}</span>
-                    </div>
-                    {dayEvents.length ? (
-                      dayEvents.slice(0, 3).map((event) => (
-                        <div className="event-pill" key={event.id}>
-                          {event.title}
-                          <small>{formatDate(new Date(event.startsAt))}</small>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="muted" style={{ fontSize: "0.9rem" }}>
-                        No events
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
           </section>
 
-          <section className="section">
-            <h2>Calendars</h2>
-            <div className="list">
-              {calendars.map((calendar) => (
-                <article className="list-item" key={calendar.id}>
-                  <div className="brand" style={{ justifyContent: "space-between" }}>
-                    <div>
-                      <strong>{calendar.name}</strong>
-                      <div className="meta">{calendar.description || "No description"}</div>
-                    </div>
-                    <span className="badge">{calendar.ownerId === session.user.id ? "owned" : "shared"}</span>
+          <section className="panel">
+            <div className="panel-title">Share access</div>
+            <div className="muted" style={{ marginBottom: 12 }}>
+              Invite people to the shared work calendar by email.
+            </div>
+            <form className="form-grid" action={shareCalendarAccess}>
+              <div>
+                <label className="label" htmlFor="share-email">
+                  Email
+                </label>
+                <input id="share-email" name="email" className="field" type="email" placeholder="name@company.com" required />
+              </div>
+              <div>
+                <label className="label" htmlFor="share-role">
+                  Access level
+                </label>
+                <select id="share-role" name="role" className="select" defaultValue="VIEWER">
+                  <option value="VIEWER">Viewer</option>
+                  <option value="EDITOR">Editor</option>
+                </select>
+              </div>
+              <button className="button-ghost" type="submit" disabled={!canManage}>
+                {canManage ? "Share access" : "Owner only"}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel">
+            <div className="panel-title">Members</div>
+            <div className="member-list">
+              {calendarData.members.map((member) => (
+                <article className="member-pill" key={member.id}>
+                  <div>
+                    <strong>{member.user.name || member.user.email || "Unknown"}</strong>
+                    <div className="muted">{member.user.email}</div>
                   </div>
-                  <p className="copy">
-                    Owner: {calendar.owner.name || calendar.owner.email || "Unknown"} · {calendar.events.length} upcoming items
-                  </p>
+                  <span className="badge">{member.role}</span>
                 </article>
               ))}
             </div>
           </section>
-
-          <section className="section">
-            <h2>Upcoming events</h2>
-            <div className="list">
-              {upcomingEvents.map((event) => (
-                <article className="list-item" key={event.id}>
-                  <div className="brand" style={{ justifyContent: "space-between" }}>
-                    <strong>{event.title}</strong>
-                    <span className="badge">{event.calendar.name}</span>
-                  </div>
-                  <div className="meta">{formatDate(new Date(event.startsAt))}</div>
-                  {event.location ? <div className="copy">{event.location}</div> : null}
-                </article>
-              ))}
-              {!upcomingEvents.length ? <div className="muted">Nothing scheduled yet.</div> : null}
-            </div>
-          </section>
-        </div>
+        </aside>
       </section>
     </main>
   );

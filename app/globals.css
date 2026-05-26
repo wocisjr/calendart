@@ -1,16 +1,16 @@
 :root {
-  --bg: #07111f;
-  --bg-soft: #0d1a2d;
-  --panel: rgba(10, 18, 33, 0.84);
-  --panel-border: rgba(255, 255, 255, 0.08);
-  --text: #eef3fb;
-  --muted: #a9b6cc;
-  --accent: #5ce1c7;
-  --accent-2: #ffcb6b;
-  --danger: #ff6b7a;
-  --shadow: 0 24px 90px rgba(0, 0, 0, 0.35);
-  --radius: 24px;
-  --radius-sm: 14px;
+  --bg: #f4f7fb;
+  --bg-soft: #edf2f8;
+  --panel: #ffffff;
+  --panel-border: #d9e2ec;
+  --text: #132033;
+  --muted: #617184;
+  --accent: #1a73e8;
+  --accent-2: #4d90fe;
+  --danger: #d64545;
+  --shadow: 0 10px 28px rgba(19, 32, 51, 0.08);
+  --radius: 20px;
+  --radius-sm: 12px;
   --font-sans: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
   --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
 }
@@ -20,16 +20,15 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(92, 225, 199, 0.12), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 203, 107, 0.14), transparent 22%),
-    linear-gradient(180deg, #07111f 0%, #050a13 100%);
+    radial-gradient(circle at top left, rgba(26, 115, 232, 0.08), transparent 26%),
+    linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
   color: var(--text);
   font-family: var(--font-sans);
 }
@@ -57,11 +56,16 @@ textarea {
 .card,
 .grid-card,
 .section,
-.login-card {
+.login-card,
+.toolbar,
+.panel,
+.day-card,
+.event-chip,
+.event-item,
+.member-pill {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
 }
 
 .topbar {
@@ -69,8 +73,8 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-radius: 999px;
-  padding: 14px 18px;
+  border-radius: 22px;
+  padding: 16px 18px;
   margin-bottom: 24px;
 }
 
@@ -88,8 +92,8 @@ textarea {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, rgba(92, 225, 199, 0.2), rgba(255, 203, 107, 0.2));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, rgba(26, 115, 232, 0.12), rgba(26, 115, 232, 0.04));
+  border: 1px solid rgba(26, 115, 232, 0.14);
 }
 
 .nav-actions {
@@ -109,6 +113,7 @@ textarea {
   font-weight: 650;
   cursor: pointer;
   transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+  color: inherit;
 }
 
 .button:hover,
@@ -119,24 +124,24 @@ textarea {
 }
 
 .button {
-  background: rgba(255, 255, 255, 0.08);
+  background: #edf3fb;
   color: var(--text);
 }
 
 .button-ghost {
   background: transparent;
   color: var(--muted);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--panel-border);
 }
 
 .button-accent {
-  background: linear-gradient(135deg, var(--accent), #8af7d8);
-  color: #06111b;
+  background: linear-gradient(135deg, var(--accent), #4d90fe);
+  color: #ffffff;
 }
 
 .button-danger {
   background: linear-gradient(135deg, #ff8a92, var(--danger));
-  color: #1d0408;
+  color: #ffffff;
 }
 
 .hero {
@@ -156,7 +161,7 @@ textarea {
   width: 340px;
   height: 340px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(92, 225, 199, 0.18), transparent 65%);
+  background: radial-gradient(circle, rgba(26, 115, 232, 0.12), transparent 65%);
   pointer-events: none;
 }
 
@@ -191,8 +196,8 @@ textarea {
 .stat {
   border-radius: 22px;
   padding: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(26, 115, 232, 0.04), rgba(26, 115, 232, 0.02));
+  border: 1px solid rgba(26, 115, 232, 0.08);
 }
 
 .stat strong {
@@ -245,8 +250,8 @@ textarea {
 .select {
   width: 100%;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-border);
+  background: #fbfcfe;
   color: var(--text);
   padding: 12px 14px;
 }
@@ -298,9 +303,9 @@ textarea {
 .event-pill {
   border-radius: 999px;
   padding: 8px 10px;
-  background: rgba(92, 225, 199, 0.14);
-  color: #d5fff4;
-  border: 1px solid rgba(92, 225, 199, 0.2);
+  background: rgba(26, 115, 232, 0.08);
+  color: var(--text);
+  border: 1px solid rgba(26, 115, 232, 0.12);
   font-size: 0.9rem;
   line-height: 1.3;
 }
@@ -339,9 +344,9 @@ textarea {
   align-items: center;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(255, 203, 107, 0.12);
-  color: #ffe1a1;
-  border: 1px solid rgba(255, 203, 107, 0.18);
+  background: rgba(26, 115, 232, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(26, 115, 232, 0.14);
   font-size: 0.85rem;
 }
 
@@ -360,6 +365,219 @@ textarea {
   font-size: 0.92rem;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 20px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.calendar-board {
+  min-width: 0;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.day-card {
+  display: grid;
+  gap: 12px;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 20px;
+  padding: 14px;
+  min-height: 340px;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.day-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(26, 115, 232, 0.28);
+}
+
+.day-card--selected {
+  border-color: rgba(26, 115, 232, 0.45);
+  box-shadow: 0 14px 30px rgba(26, 115, 232, 0.12);
+}
+
+.day-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.day-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.day-number {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(26, 115, 232, 0.08);
+  color: var(--accent);
+  font-weight: 700;
+  flex: none;
+}
+
+.day-events {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.event-chip {
+  border-radius: 16px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.event-chip__time {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.event-chip__title {
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.event-chip__meta,
+.event-meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.empty-day,
+.empty-state {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.sidebar {
+  display: grid;
+  gap: 14px;
+}
+
+.panel {
+  border-radius: 20px;
+  padding: 16px;
+}
+
+.panel-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.panel-heading {
+  margin: 0 0 16px;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.event-list {
+  display: grid;
+  gap: 12px;
+}
+
+.event-item {
+  border-radius: 18px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.event-item__top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.member-list {
+  display: grid;
+  gap: 10px;
+}
+
+.member-pill {
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (max-width: 1200px) {
+  .week-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100% - 18px, 1180px);
+    padding-top: 12px;
+  }
+
+  .topbar,
+  .toolbar {
+    border-radius: 18px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .week-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .day-card {
+    min-height: auto;
+  }
+
+  .nav-actions {
+    width: 100%;
+  }
+
+  .nav-actions > * {
+    flex: 1 1 auto;
+  }
 }
 
 @media (max-width: 920px) {

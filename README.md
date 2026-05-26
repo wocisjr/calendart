@@ -69,6 +69,7 @@ Important variables in `.env`:
 - Sessions stay valid for 30 days by default.
 - Login is intentionally handled inside the app UI, but the auth backend stays in NextAuth.
 - On container startup, the app runs `prisma db push` so the database tables are created automatically.
+- `NEXTAUTH_URL` must match the exact browser URL you use to open the app. If you access it via an IP address or a domain, use that instead of `localhost`.
 
 ## Troubleshooting
 
