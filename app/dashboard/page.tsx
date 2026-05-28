@@ -24,8 +24,6 @@ type WorkspaceEvent = Prisma.EventGetPayload<{
   };
 }>;
 
-type ViewMode = "week" | "month";
-
 function parseDateInput(value?: string) {
   if (!value) {
     return null;
@@ -33,10 +31,6 @@ function parseDateInput(value?: string) {
 
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function parseView(value?: string): ViewMode {
-  return value === "month" ? "month" : "week";
 }
 
 function startOfWeek(date: Date) {
@@ -82,15 +76,6 @@ function toDateTimeLocal(date: Date, time: string) {
   const result = new Date(date);
   result.setHours(hours, minutes, 0, 0);
   return result.toISOString().slice(0, 16);
-}
-
-function formatWeekLabel(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("cs-CZ", {
-    day: "numeric",
-    month: "short"
-  });
-
-  return `${formatter.format(start)} - ${formatter.format(addDays(end, -1))}`;
 }
 
 function formatMonthLabel(date: Date) {
@@ -150,8 +135,8 @@ function groupByDay(events: WorkspaceEvent[]) {
   }, {});
 }
 
-function makeViewHref(date: Date, view: ViewMode) {
-  return `/dashboard?day=${toDayKey(date)}&view=${view}`;
+function makeMonthHref(date: Date) {
+  return `/dashboard?day=${toDayKey(date)}`;
 }
 
 async function loadWorkspace(sessionUserId: string) {
@@ -181,7 +166,7 @@ async function loadWorkspace(sessionUserId: string) {
 export default async function DashboardPage({
   searchParams
 }: Readonly<{
-  searchParams?: Promise<{ day?: string; view?: string }>;
+  searchParams?: Promise<{ day?: string }>;
 }>) {
   const session = await getServerSession(authOptions);
 
@@ -190,7 +175,6 @@ export default async function DashboardPage({
   }
 
   const resolvedSearchParams = (await searchParams) ?? {};
-  const view = parseView(resolvedSearchParams.view);
   const calendarData = await loadWorkspace(session.user.id);
 
   const userMembership = calendarData.members.find((member) => member.userId === session.user.id);
@@ -220,8 +204,8 @@ export default async function DashboardPage({
   }
 
   const selectedDate = parseDateInput(resolvedSearchParams.day) ?? new Date();
-  const rangeStart = view === "month" ? startOfMonth(selectedDate) : startOfWeek(selectedDate);
-  const rangeEnd = view === "month" ? endOfMonth(selectedDate) : addDays(rangeStart, 7);
+  const rangeStart = startOfMonth(selectedDate);
+  const rangeEnd = endOfMonth(selectedDate);
   const events = await prisma.event.findMany({
     where: {
       calendarId: calendarData.id,
@@ -245,15 +229,13 @@ export default async function DashboardPage({
   const selectedDayInput = toDateTimeLocal(selectedDate, "09:00");
   const selectedDayEndInput = toDateTimeLocal(selectedDate, "10:00");
   const memberCount = calendarData.members.length;
-  const viewLabel = view === "month" ? formatMonthLabel(selectedDate) : formatWeekLabel(rangeStart, rangeEnd);
-  const prevRangeDate = view === "month" ? addMonths(selectedDate, -1) : addDays(rangeStart, -7);
-  const nextRangeDate = view === "month" ? addMonths(selectedDate, 1) : addDays(rangeStart, 7);
+  const monthLabel = formatMonthLabel(selectedDate);
+  const prevMonthDate = addMonths(selectedDate, -1);
+  const nextMonthDate = addMonths(selectedDate, 1);
   const monthGridStart = startOfWeek(startOfMonth(selectedDate));
   const monthGridDays = Array.from({ length: 42 }, (_, index) => addDays(monthGridStart, index));
-  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(rangeStart, index));
   const today = new Date();
   const weekDayLabels = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
-  const todayButtonLabel = view === "month" ? formatMonthLabel(new Date()) : "Tento týden";
 
   return (
     <main className="shell">
@@ -277,39 +259,20 @@ export default async function DashboardPage({
 
       <section className="toolbar">
         <div className="toolbar-left">
-          <div className="toolbar-title">{view === "month" ? "Měsíc" : "Týden"}</div>
-          <div className="muted">{viewLabel}</div>
+          <div className="toolbar-title">Měsíc</div>
+          <div className="muted">{monthLabel}</div>
         </div>
 
         <div className="toolbar-center">
-          <Link className="button-ghost button-ghost--compact" href={makeViewHref(prevRangeDate, view)} aria-label="Předchozí období">
+          <Link className="button-ghost button-ghost--compact" href={makeMonthHref(prevMonthDate)} aria-label="Předchozí měsíc">
             ‹
           </Link>
-          <Link className="button-ghost" href={makeViewHref(new Date(), view)}>
-            {todayButtonLabel}
+          <Link className="button-ghost" href={makeMonthHref(new Date())}>
+            {monthLabel}
           </Link>
-          <Link className="button-ghost button-ghost--compact" href={makeViewHref(nextRangeDate, view)} aria-label="Další období">
+          <Link className="button-ghost button-ghost--compact" href={makeMonthHref(nextMonthDate)} aria-label="Další měsíc">
             ›
           </Link>
-        </div>
-
-        <div className="toolbar-right">
-          <div className="mode-switch" role="tablist" aria-label="Přepnout pohled">
-            <Link
-              className={`button-ghost button-ghost--segmented ${view === "week" ? "button-ghost--active" : ""}`}
-              href={makeViewHref(selectedDate, "week")}
-              aria-current={view === "week" ? "page" : undefined}
-            >
-              Týden
-            </Link>
-            <Link
-              className={`button-ghost button-ghost--segmented ${view === "month" ? "button-ghost--active" : ""}`}
-              href={makeViewHref(selectedDate, "month")}
-              aria-current={view === "month" ? "page" : undefined}
-            >
-              Měsíc
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -439,105 +402,54 @@ export default async function DashboardPage({
         </aside>
 
         <div className="calendar-board">
-          {view === "month" ? (
-            <div className="calendar-frame">
-              <div className="calendar-weekdays calendar-weekdays--month" aria-hidden="true">
-                {weekDayLabels.map((label) => (
-                  <div key={label} className="calendar-weekday">
-                    {label}
-                  </div>
-                ))}
-              </div>
-              <div className="month-grid">
-                {monthGridDays.map((day) => {
-                  const dayKey = toDayKey(day);
-                  const dayEvents = eventsByDay[dayKey] ?? [];
-                  const isSelected = dayKey === selectedDayKey;
-                  const isToday = isSameDay(day, today);
-                  const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
-                  const visibleEvents = dayEvents.slice(0, 3);
-                  const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
-
-                  return (
-                    <Link
-                      key={dayKey}
-                      href={makeViewHref(day, "month")}
-                      className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isToday ? "day-card--today" : ""} ${
-                        isOutsideMonth ? "day-card--outside" : ""
-                      }`}
-                    >
-                      <div className="day-head">
-                        <div className="day-label">{formatDayLabel(day)}</div>
-                        <span className="day-number">{day.getDate()}</span>
-                      </div>
-
-                      <div className="day-events day-events--month">
-                        {visibleEvents.map((event) => (
-                          <article className="event-chip" key={event.id}>
-                            <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
-                            <div className="event-chip__title">{event.title}</div>
-                            <div className="event-chip__meta">
-                              {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
-                            </div>
-                          </article>
-                        ))}
-                        {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+          <div className="calendar-frame">
+            <div className="calendar-weekdays calendar-weekdays--month" aria-hidden="true">
+              {weekDayLabels.map((label) => (
+                <div key={label} className="calendar-weekday">
+                  {label}
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="calendar-frame">
-              <div className="calendar-weekdays" aria-hidden="true">
-                {weekDays.map((day) => (
-                  <div key={toDayKey(day)} className="calendar-weekday">
-                    <div>{formatDayTitle(day)}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="week-grid">
-                {weekDays.map((day) => {
-                  const dayKey = toDayKey(day);
-                  const dayEvents = eventsByDay[dayKey] ?? [];
-                  const isSelected = dayKey === selectedDayKey;
-                  const isToday = isSameDay(day, today);
-                  const visibleEvents = dayEvents.slice(0, 4);
-                  const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
+            <div className="month-grid">
+              {monthGridDays.map((day) => {
+                const dayKey = toDayKey(day);
+                const dayEvents = eventsByDay[dayKey] ?? [];
+                const isSelected = dayKey === selectedDayKey;
+                const isToday = isSameDay(day, today);
+                const isOutsideMonth = day.getMonth() !== selectedDate.getMonth();
+                const visibleEvents = dayEvents.slice(0, 3);
+                const hiddenCount = Math.max(0, dayEvents.length - visibleEvents.length);
 
-                  return (
-                    <Link
-                      key={dayKey}
-                      href={makeViewHref(day, "week")}
-                      className={`day-card ${isSelected ? "day-card--selected" : ""} ${isToday ? "day-card--today" : ""}`}
-                    >
-                      <div className="day-head">
-                        <div>
-                          <div className="day-label">{formatDayTitle(day)}</div>
-                          <div className="muted">{dayEvents.length} událostí</div>
-                        </div>
-                        <span className="day-number">{day.getDate()}</span>
-                      </div>
+                return (
+                  <Link
+                    key={dayKey}
+                    href={makeMonthHref(day)}
+                    className={`day-card day-card--month ${isSelected ? "day-card--selected" : ""} ${isToday ? "day-card--today" : ""} ${
+                      isOutsideMonth ? "day-card--outside" : ""
+                    }`}
+                  >
+                    <div className="day-head">
+                      <div className="day-label">{formatDayLabel(day)}</div>
+                      <span className="day-number">{day.getDate()}</span>
+                    </div>
 
-                      <div className="day-events">
-                        {visibleEvents.map((event) => (
-                          <article className="event-chip" key={event.id}>
-                            <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
-                            <div className="event-chip__title">{event.title}</div>
-                            <div className="event-chip__meta">
-                              {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
-                            </div>
-                          </article>
-                        ))}
-                        {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+                    <div className="day-events day-events--month">
+                      {visibleEvents.map((event) => (
+                        <article className="event-chip" key={event.id}>
+                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                          <div className="event-chip__title">{event.title}</div>
+                          <div className="event-chip__meta">
+                            {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
+                          </div>
+                        </article>
+                      ))}
+                      {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
       </section>
     </main>

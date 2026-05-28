@@ -81,7 +81,7 @@ textarea {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
   border-radius: 20px;
@@ -149,13 +149,6 @@ textarea {
   color: var(--accent);
   border-color: rgba(26, 115, 232, 0.3);
   background: rgba(26, 115, 232, 0.06);
-}
-
-.button-ghost--segmented {
-  border-radius: 999px;
-  padding: 10px 14px;
-  min-width: 88px;
-  text-align: center;
 }
 
 .button-accent {
@@ -400,8 +393,7 @@ textarea {
   min-width: 0;
 }
 
-.toolbar-center,
-.toolbar-right {
+.toolbar-center {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -417,12 +409,6 @@ textarea {
 
 .calendar-board {
   min-width: 0;
-}
-
-.week-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 12px;
 }
 
 .day-card {
@@ -633,17 +619,6 @@ textarea {
   min-width: 140px;
 }
 
-.mode-switch {
-  display: flex;
-  gap: 8px;
-  margin: 0;
-  flex-wrap: wrap;
-  padding: 4px;
-  border-radius: 999px;
-  background: rgba(26, 115, 232, 0.04);
-  border: 1px solid rgba(26, 115, 232, 0.08);
-}
-
 .panel-title {
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -700,8 +675,7 @@ textarea {
 }
 
 @media (max-width: 1200px) {
-  .month-grid,
-  .week-grid {
+  .month-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -723,15 +697,10 @@ textarea {
     flex-direction: column;
   }
 
-  .toolbar-center,
-  .toolbar-right {
+  .toolbar-center {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
-  }
-
-  .week-grid {
-    grid-template-columns: 1fr;
   }
 
   .month-grid {
