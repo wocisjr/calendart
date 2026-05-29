@@ -105,9 +105,19 @@ export async function createEvent(formData: FormData) {
   }
 
   let actorId: string | null = null;
+  let attributedToUserId: string | null = null;
 
-  if (user.role === "ADMIN") {
-    if (attributedToId === "__new__") {
+  if (user.role === "ADMIN" || membership?.role === "OWNER") {
+    if (attributedToId.startsWith("user:")) {
+      const targetUserId = attributedToId.slice("user:".length);
+      const targetMember = calendar.members.find((member) => member.userId === targetUserId);
+
+      if (targetMember) {
+        attributedToUserId = targetMember.userId;
+      } else {
+        return;
+      }
+    } else if (attributedToId === "__new__") {
       if (!actorName) {
         return;
       }
@@ -128,15 +138,20 @@ export async function createEvent(formData: FormData) {
       });
 
       actorId = actor.id;
-    } else if (attributedToId) {
+    } else if (attributedToId.startsWith("actor:")) {
+      const actorLookupId = attributedToId.slice("actor:".length);
       const actor = await prisma.calendarActor.findFirst({
         where: {
-          id: attributedToId,
+          id: actorLookupId,
           calendarId
         }
       });
 
-      actorId = actor?.id ?? null;
+      if (!actor) {
+        return;
+      }
+
+      actorId = actor.id;
     }
   }
 
@@ -149,7 +164,8 @@ export async function createEvent(formData: FormData) {
       startsAt: new Date(startsAt),
       endsAt: new Date(endsAt),
       createdById: user.id,
-      attributedToId: actorId
+      attributedToId: actorId,
+      attributedToUserId
     }
   });
 

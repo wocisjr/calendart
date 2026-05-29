@@ -23,6 +23,7 @@ type WorkspaceEvent = Prisma.EventGetPayload<{
   include: {
     createdBy: true;
     attributedTo: true;
+    attributedToUser: true;
   };
 }>;
 
@@ -124,7 +125,16 @@ function formatMemberLabel(member: WorkspaceCalendar["members"][number]) {
 }
 
 function formatEventAuthor(event: WorkspaceEvent) {
-  return event.attributedTo?.name || event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý";
+  return (
+    event.attributedToUser?.username ||
+    event.attributedToUser?.name ||
+    event.attributedToUser?.email ||
+    event.attributedTo?.name ||
+    event.createdBy.username ||
+    event.createdBy.name ||
+    event.createdBy.email ||
+    "Neznámý"
+  );
 }
 
 function formatMemberRole(role: string) {
@@ -195,7 +205,7 @@ export default async function DashboardPage({
     Boolean(userMembership);
   const canManage = session.user.role === "ADMIN" || userMembership?.role === "OWNER" || userMembership?.role === "EDITOR";
   const canAdminister = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
-  const canAttributeEvents = session.user.role === "ADMIN";
+  const canAttributeEvents = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
 
   if (!isAllowed) {
     return (
@@ -228,7 +238,8 @@ export default async function DashboardPage({
     },
     include: {
       createdBy: true,
-      attributedTo: true
+      attributedTo: true,
+      attributedToUser: true
     },
     orderBy: [
       { startsAt: "asc" },
@@ -371,8 +382,15 @@ export default async function DashboardPage({
                     </label>
                     <select id="attributedToId" name="attributedToId" className="select" defaultValue="">
                       <option value="">Můj účet</option>
+                      {calendarData.members
+                        .filter((member) => member.userId !== session.user.id && member.role !== "VIEWER")
+                        .map((member) => (
+                          <option key={member.id} value={`user:${member.userId}`}>
+                            {formatMemberLabel(member)}
+                          </option>
+                        ))}
                       {calendarData.actors.map((actor) => (
-                        <option key={actor.id} value={actor.id}>
+                        <option key={actor.id} value={`actor:${actor.id}`}>
                           {actor.name}
                         </option>
                       ))}
