@@ -53,7 +53,6 @@ model User {
   calendars       Calendar[]         @relation("CalendarOwner")
   memberships     CalendarMember[]
   createdEvents   Event[]            @relation("CreatedEvents")
-  createdActors   CalendarActor[]    @relation("CreatedActors")
   attributedEvents Event[]           @relation("AttributedEvents")
   participants    EventParticipant[]
   invitesSent     Invite[]           @relation("InvitesSent")
@@ -106,7 +105,6 @@ model Calendar {
   ownerId     String
   owner       User            @relation("CalendarOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     CalendarMember[]
-  actors      CalendarActor[]
   events      Event[]
   invites     Invite[]
   createdAt   DateTime        @default(now())
@@ -141,11 +139,9 @@ model Event {
   visibility   EventVisibility @default(SHARED)
   recurrenceRule String?
   createdById  String
-  attributedToId String?
   attributedToUserId String?
   calendar     Calendar        @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   createdBy    User            @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Restrict)
-  attributedTo CalendarActor?  @relation(fields: [attributedToId], references: [id], onDelete: SetNull)
   attributedToUser User?       @relation("AttributedEvents", fields: [attributedToUserId], references: [id], onDelete: SetNull)
   participants EventParticipant[]
   createdAt    DateTime        @default(now())
@@ -153,24 +149,7 @@ model Event {
 
   @@index([calendarId, startsAt])
   @@index([createdById])
-  @@index([attributedToId])
   @@index([attributedToUserId])
-}
-
-model CalendarActor {
-  id         String   @id @default(cuid())
-  calendarId String
-  name       String
-  createdById String
-  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
-  createdBy  User     @relation("CreatedActors", fields: [createdById], references: [id], onDelete: Restrict)
-  events     Event[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([calendarId, name])
-  @@index([calendarId])
-  @@index([createdById])
 }
 
 model EventParticipant {

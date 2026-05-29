@@ -31,10 +31,10 @@ Krátký kontext pro další práci v tomhle repu. Cíl je udržet appku minimal
 
 - Každý nový uživatel se automaticky přidá do jedné společné workspace skupiny.
 - Admin / owner může:
-  - měnit role členů mezi `VIEWER` a `EDITOR`
+  - měnit role členů mezi `BASIC` a `ADMIN`
   - odebrat člena ze skupiny
   - mazat eventy
-  - při vytváření eventů je připsat na člena nebo lokálního "sub-usera" bez loginu
+  - při vytváření eventů je připsat na jiného člena
 - Vlastníka kalendáře nelze odstranit ani přepsat na jinou roli.
 
 ## UI pravidla
@@ -67,9 +67,9 @@ Krátký kontext pro další práci v tomhle repu. Cíl je udržet appku minimal
 - `Calendar`
   - jeden workspace kalendář
 - `CalendarMember`
-  - role: `OWNER`, `EDITOR`, `VIEWER`
+  - role: `OWNER`, `ADMIN`, `BASIC`
 - `Event`
-  - skutečný creator, připsaný sub-user, čas, stav, visibility
+  - skutečný creator, připsaný člen, čas, stav, visibility
 
 ## Deployment poznámky
 

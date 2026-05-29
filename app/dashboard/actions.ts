@@ -72,8 +72,7 @@ export async function createEvent(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
-  const attributedToId = String(formData.get("attributedToId") ?? "");
-  const actorName = String(formData.get("actorName") ?? "").trim();
+  const attributedToUserId = String(formData.get("attributedToUserId") ?? "");
 
   if (!calendarId || !title || !startsAt || !endsAt) {
     return;
@@ -98,60 +97,23 @@ export async function createEvent(formData: FormData) {
   }
 
   const membership = calendar.members.find((member) => member.userId === user.id);
-  const canCreate = user.role === "ADMIN" || !membership || membership.role !== "VIEWER";
+  const canCreate = user.role === "ADMIN" || Boolean(membership);
 
   if (!canCreate) {
     return;
   }
 
-  let actorId: string | null = null;
-  let attributedToUserId: string | null = null;
+  let attributedToUserIdValue: string | null = null;
 
-  if (user.role === "ADMIN" || membership?.role === "OWNER") {
-    if (attributedToId.startsWith("user:")) {
-      const targetUserId = attributedToId.slice("user:".length);
-      const targetMember = calendar.members.find((member) => member.userId === targetUserId);
+  if (user.role === "ADMIN" || membership?.role === "EDITOR" || membership?.role === "OWNER") {
+    if (attributedToUserId) {
+      const targetMember = calendar.members.find((member) => member.userId === attributedToUserId);
 
-      if (targetMember) {
-        attributedToUserId = targetMember.userId;
-      } else {
-        return;
-      }
-    } else if (attributedToId === "__new__") {
-      if (!actorName) {
+      if (!targetMember) {
         return;
       }
 
-      const actor = await prisma.calendarActor.upsert({
-        where: {
-          calendarId_name: {
-            calendarId,
-            name: actorName
-          }
-        },
-        update: {},
-        create: {
-          calendarId,
-          name: actorName,
-          createdById: user.id
-        }
-      });
-
-      actorId = actor.id;
-    } else if (attributedToId.startsWith("actor:")) {
-      const actorLookupId = attributedToId.slice("actor:".length);
-      const actor = await prisma.calendarActor.findFirst({
-        where: {
-          id: actorLookupId,
-          calendarId
-        }
-      });
-
-      if (!actor) {
-        return;
-      }
-
-      actorId = actor.id;
+      attributedToUserIdValue = targetMember.userId;
     }
   }
 
@@ -164,8 +126,7 @@ export async function createEvent(formData: FormData) {
       startsAt: new Date(startsAt),
       endsAt: new Date(endsAt),
       createdById: user.id,
-      attributedToId: actorId,
-      attributedToUserId
+      attributedToUserId: attributedToUserIdValue
     }
   });
 
@@ -196,7 +157,11 @@ export async function removeEvent(formData: FormData) {
   }
 
   const membership = event.calendar.members.find((member) => member.userId === user.id);
-  const canManage = user.role === "ADMIN" || membership?.role === "OWNER" || membership?.role === "EDITOR";
+  const canManage =
+    user.role === "ADMIN" ||
+    membership?.role === "OWNER" ||
+    membership?.role === "EDITOR" ||
+    event.createdById === user.id;
 
   if (!canManage) {
     return;

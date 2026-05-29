@@ -43,22 +43,39 @@ async function ensureWorkspaceMembership(userId: string) {
     return calendar;
   }
 
-  await prisma.calendarMember.upsert({
+  const existingMembership = await prisma.calendarMember.findUnique({
     where: {
       calendarId_userId: {
         calendarId: calendar.id,
         userId
       }
-    },
-    create: {
-      calendarId: calendar.id,
-      userId,
-      role: calendar.ownerId === userId ? "OWNER" : "VIEWER"
-    },
-    update: {
-      role: calendar.ownerId === userId ? "OWNER" : "VIEWER"
     }
   });
+
+  if (!existingMembership) {
+    await prisma.calendarMember.create({
+      data: {
+        calendarId: calendar.id,
+        userId,
+        role: calendar.ownerId === userId ? "OWNER" : "VIEWER"
+      }
+    });
+    return calendar;
+  }
+
+  if (calendar.ownerId === userId && existingMembership.role !== "OWNER") {
+    await prisma.calendarMember.update({
+      where: {
+        calendarId_userId: {
+          calendarId: calendar.id,
+          userId
+        }
+      },
+      data: {
+        role: "OWNER"
+      }
+    });
+  }
 
   return calendar;
 }

@@ -10,7 +10,6 @@ import { LogoutButton } from "@/app/logout-button";
 type WorkspaceCalendar = Prisma.CalendarGetPayload<{
   include: {
     owner: true;
-    actors: true;
     members: {
       include: {
         user: true;
@@ -22,7 +21,6 @@ type WorkspaceCalendar = Prisma.CalendarGetPayload<{
 type WorkspaceEvent = Prisma.EventGetPayload<{
   include: {
     createdBy: true;
-    attributedTo: true;
     attributedToUser: true;
   };
 }>;
@@ -129,7 +127,6 @@ function formatEventAuthor(event: WorkspaceEvent) {
     event.attributedToUser?.username ||
     event.attributedToUser?.name ||
     event.attributedToUser?.email ||
-    event.attributedTo?.name ||
     event.createdBy.username ||
     event.createdBy.name ||
     event.createdBy.email ||
@@ -139,8 +136,8 @@ function formatEventAuthor(event: WorkspaceEvent) {
 
 function formatMemberRole(role: string) {
   if (role === "OWNER") return "Vlastník";
-  if (role === "EDITOR") return "Editor";
-  return "Pouze čtení";
+  if (role === "EDITOR") return "Admin";
+  return "Základní";
 }
 
 function groupByDay(events: WorkspaceEvent[]) {
@@ -161,11 +158,6 @@ async function loadWorkspace(sessionUserId: string) {
     where: { id: calendar.id },
     include: {
       owner: true,
-      actors: {
-        orderBy: {
-          name: "asc"
-        }
-      },
       members: {
         include: {
           user: true
@@ -203,9 +195,9 @@ export default async function DashboardPage({
     session.user.role === "ADMIN" ||
     calendarData.ownerId === session.user.id ||
     Boolean(userMembership);
-  const canManage = session.user.role === "ADMIN" || userMembership?.role === "OWNER" || userMembership?.role === "EDITOR";
+  const canManage = session.user.role === "ADMIN" || Boolean(userMembership);
   const canAdminister = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
-  const canAttributeEvents = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
+  const canAttributeEvents = session.user.role === "ADMIN" || userMembership?.role === "EDITOR" || userMembership?.role === "OWNER";
 
   if (!isAllowed) {
     return (
@@ -238,7 +230,6 @@ export default async function DashboardPage({
     },
     include: {
       createdBy: true,
-      attributedTo: true,
       attributedToUser: true
     },
     orderBy: [
@@ -308,30 +299,38 @@ export default async function DashboardPage({
 
             {selectedDayEvents.length ? (
               <div className="event-list">
-                {selectedDayEvents.map((event) => (
-                  <article className="event-item" key={event.id}>
-                    <div className="event-item__top">
-                      <strong>{event.title}</strong>
-                      <div className="event-item__actions">
-                        <span className="badge">{formatTime(new Date(event.startsAt))}</span>
-                        {canManage ? (
-                          <form action={removeEvent}>
-                            <input type="hidden" name="eventId" value={event.id} />
-                            <button className="button-danger button-danger--small" type="submit">
-                              Smazat
-                            </button>
-                          </form>
-                        ) : null}
+                {selectedDayEvents.map((event) => {
+                    const canDeleteEvent =
+                      session.user.role === "ADMIN" ||
+                      userMembership?.role === "OWNER" ||
+                      userMembership?.role === "EDITOR" ||
+                      event.createdById === session.user.id;
+
+                  return (
+                    <article className="event-item" key={event.id}>
+                      <div className="event-item__top">
+                        <strong>{event.title}</strong>
+                        <div className="event-item__actions">
+                          <span className="badge">{formatTime(new Date(event.startsAt))}</span>
+                          {canDeleteEvent ? (
+                            <form action={removeEvent}>
+                              <input type="hidden" name="eventId" value={event.id} />
+                              <button className="button-danger button-danger--small" type="submit">
+                                Smazat
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    {event.location ? <div className="muted">{event.location}</div> : null}
-                    {event.description ? <div className="copy">{event.description}</div> : null}
-                    <div className="event-meta">
-                      Přidal {formatEventAuthor(event)} dne{" "}
-                      {formatAddedAt(new Date(event.createdAt))}
-                    </div>
-                  </article>
-                ))}
+                      {event.location ? <div className="muted">{event.location}</div> : null}
+                      {event.description ? <div className="copy">{event.description}</div> : null}
+                      <div className="event-meta">
+                        Přidal {formatEventAuthor(event)} dne{" "}
+                        {formatAddedAt(new Date(event.createdAt))}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="empty-state">&nbsp;</div>
@@ -377,39 +376,19 @@ export default async function DashboardPage({
               {canAttributeEvents ? (
                 <>
                   <div>
-                    <label className="label" htmlFor="attributedToId">
+                    <label className="label" htmlFor="attributedToUserId">
                       Zapsat jako
                     </label>
-                    <select id="attributedToId" name="attributedToId" className="select" defaultValue="">
+                    <select id="attributedToUserId" name="attributedToUserId" className="select" defaultValue="">
                       <option value="">Můj účet</option>
                       {calendarData.members
-                        .filter((member) => member.userId !== session.user.id && member.role !== "VIEWER")
+                        .filter((member) => member.userId !== session.user.id)
                         .map((member) => (
-                          <option key={member.id} value={`user:${member.userId}`}>
+                          <option key={member.id} value={member.userId}>
                             {formatMemberLabel(member)}
                           </option>
                         ))}
-                      {calendarData.actors.map((actor) => (
-                        <option key={actor.id} value={`actor:${actor.id}`}>
-                          {actor.name}
-                        </option>
-                      ))}
-                      <option value="__new__">Nový člověk</option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="actorName">
-                      Jméno nového člověka
-                    </label>
-                    <input
-                      id="actorName"
-                      name="actorName"
-                      className="field"
-                      placeholder="Např. Tomáš z výroby"
-                    />
-                    <div className="muted" style={{ marginTop: 6, fontSize: "0.84rem" }}>
-                      Vyplní se jen při volbě „Nový člověk“.
-                    </div>
                   </div>
                 </>
               ) : null}
@@ -438,8 +417,8 @@ export default async function DashboardPage({
                         <form className="member-role-form" action={updateCalendarMemberRole}>
                           <input type="hidden" name="memberId" value={member.id} />
                           <select className="select member-role-select" name="role" defaultValue={member.role}>
-                            <option value="VIEWER">Pouze čtení</option>
-                            <option value="EDITOR">Editor</option>
+                            <option value="VIEWER">Základní</option>
+                            <option value="EDITOR">Admin</option>
                           </select>
                           <button className="button-ghost button-ghost--compact" type="submit">
                             Uložit
