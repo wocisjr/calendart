@@ -34,6 +34,7 @@ Krátký kontext pro další práci v tomhle repu. Cíl je udržet appku minimal
   - měnit role členů mezi `VIEWER` a `EDITOR`
   - odebrat člena ze skupiny
   - mazat eventy
+  - při vytváření eventů je připsat na lokálního "sub-usera" bez loginu
 - Vlastníka kalendáře nelze odstranit ani přepsat na jinou roli.
 
 ## UI pravidla
@@ -68,7 +69,7 @@ Krátký kontext pro další práci v tomhle repu. Cíl je udržet appku minimal
 - `CalendarMember`
   - role: `OWNER`, `EDITOR`, `VIEWER`
 - `Event`
-  - creator, čas, stav, visibility
+  - skutečný creator, připsaný sub-user, čas, stav, visibility
 
 ## Deployment poznámky
 
@@ -95,4 +96,3 @@ Krátký kontext pro další práci v tomhle repu. Cíl je udržet appku minimal
 - Praktické
 - Čitelné
 - Bez zbytečných vrstev navíc
-

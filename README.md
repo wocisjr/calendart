@@ -63,6 +63,7 @@ Important variables in `.env`:
 - `ADMIN_EMAILS` promotes matching accounts to admin role.
 - Every new registered account is added to the single shared workspace automatically.
 - Admins can remove members from the workspace directly in the UI.
+- Admins can also assign events to local "sub-users" without logins so the calendar shows who the event is written for.
 - Sessions stay valid for 30 days by default.
 - Login is intentionally handled inside the app UI, but the auth backend stays in NextAuth.
 - On container startup, the app runs `prisma db push` so the database tables are created automatically.

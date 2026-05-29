@@ -72,6 +72,8 @@ export async function createEvent(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
+  const attributedToId = String(formData.get("attributedToId") ?? "");
+  const actorName = String(formData.get("actorName") ?? "").trim();
 
   if (!calendarId || !title || !startsAt || !endsAt) {
     return;
@@ -102,6 +104,42 @@ export async function createEvent(formData: FormData) {
     return;
   }
 
+  let actorId: string | null = null;
+
+  if (user.role === "ADMIN") {
+    if (attributedToId === "__new__") {
+      if (!actorName) {
+        return;
+      }
+
+      const actor = await prisma.calendarActor.upsert({
+        where: {
+          calendarId_name: {
+            calendarId,
+            name: actorName
+          }
+        },
+        update: {},
+        create: {
+          calendarId,
+          name: actorName,
+          createdById: user.id
+        }
+      });
+
+      actorId = actor.id;
+    } else if (attributedToId) {
+      const actor = await prisma.calendarActor.findFirst({
+        where: {
+          id: attributedToId,
+          calendarId
+        }
+      });
+
+      actorId = actor?.id ?? null;
+    }
+  }
+
   await prisma.event.create({
     data: {
       calendarId,
@@ -110,7 +148,8 @@ export async function createEvent(formData: FormData) {
       location: location || null,
       startsAt: new Date(startsAt),
       endsAt: new Date(endsAt),
-      createdById: user.id
+      createdById: user.id,
+      attributedToId: actorId
     }
   });
 

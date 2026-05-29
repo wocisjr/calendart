@@ -10,6 +10,7 @@ import { LogoutButton } from "@/app/logout-button";
 type WorkspaceCalendar = Prisma.CalendarGetPayload<{
   include: {
     owner: true;
+    actors: true;
     members: {
       include: {
         user: true;
@@ -21,6 +22,7 @@ type WorkspaceCalendar = Prisma.CalendarGetPayload<{
 type WorkspaceEvent = Prisma.EventGetPayload<{
   include: {
     createdBy: true;
+    attributedTo: true;
   };
 }>;
 
@@ -121,6 +123,10 @@ function formatMemberLabel(member: WorkspaceCalendar["members"][number]) {
   return member.user.username || member.user.name || member.user.email || "Neznámý";
 }
 
+function formatEventAuthor(event: WorkspaceEvent) {
+  return event.attributedTo?.name || event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý";
+}
+
 function formatMemberRole(role: string) {
   if (role === "OWNER") return "Vlastník";
   if (role === "EDITOR") return "Editor";
@@ -145,6 +151,11 @@ async function loadWorkspace(sessionUserId: string) {
     where: { id: calendar.id },
     include: {
       owner: true,
+      actors: {
+        orderBy: {
+          name: "asc"
+        }
+      },
       members: {
         include: {
           user: true
@@ -184,6 +195,7 @@ export default async function DashboardPage({
     Boolean(userMembership);
   const canManage = session.user.role === "ADMIN" || userMembership?.role === "OWNER" || userMembership?.role === "EDITOR";
   const canAdminister = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
+  const canAttributeEvents = session.user.role === "ADMIN";
 
   if (!isAllowed) {
     return (
@@ -215,7 +227,8 @@ export default async function DashboardPage({
       }
     },
     include: {
-      createdBy: true
+      createdBy: true,
+      attributedTo: true
     },
     orderBy: [
       { startsAt: "asc" },
@@ -303,7 +316,7 @@ export default async function DashboardPage({
                     {event.location ? <div className="muted">{event.location}</div> : null}
                     {event.description ? <div className="copy">{event.description}</div> : null}
                     <div className="event-meta">
-                      Přidal {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"} dne{" "}
+                      Přidal {formatEventAuthor(event)} dne{" "}
                       {formatAddedAt(new Date(event.createdAt))}
                     </div>
                   </article>
@@ -350,6 +363,38 @@ export default async function DashboardPage({
                 </label>
                 <textarea id="event-description" name="description" className="textarea" placeholder="Volitelné poznámky" />
               </div>
+              {canAttributeEvents ? (
+                <>
+                  <div>
+                    <label className="label" htmlFor="attributedToId">
+                      Zapsat jako
+                    </label>
+                    <select id="attributedToId" name="attributedToId" className="select" defaultValue="">
+                      <option value="">Můj účet</option>
+                      {calendarData.actors.map((actor) => (
+                        <option key={actor.id} value={actor.id}>
+                          {actor.name}
+                        </option>
+                      ))}
+                      <option value="__new__">Nový člověk</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="actorName">
+                      Jméno nového člověka
+                    </label>
+                    <input
+                      id="actorName"
+                      name="actorName"
+                      className="field"
+                      placeholder="Např. Tomáš z výroby"
+                    />
+                    <div className="muted" style={{ marginTop: 6, fontSize: "0.84rem" }}>
+                      Vyplní se jen při volbě „Nový člověk“.
+                    </div>
+                  </div>
+                </>
+              ) : null}
               <button className="button-accent" type="submit" disabled={!canManage}>
                 {canManage ? "Přidat událost" : "Jen pro čtení"}
               </button>
@@ -438,9 +483,7 @@ export default async function DashboardPage({
                         <article className="event-chip" key={event.id}>
                           <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
                           <div className="event-chip__title">{event.title}</div>
-                          <div className="event-chip__meta">
-                            {event.createdBy.username || event.createdBy.name || event.createdBy.email || "Neznámý"}
-                          </div>
+                          <div className="event-chip__meta">{formatEventAuthor(event)}</div>
                         </article>
                       ))}
                       {hiddenCount > 0 ? <div className="event-chip event-chip--more">+{hiddenCount} další</div> : null}
