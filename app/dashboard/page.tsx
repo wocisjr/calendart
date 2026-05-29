@@ -124,6 +124,7 @@ function formatMemberLabel(member: WorkspaceCalendar["members"][number]) {
 
 function formatEventAuthor(event: WorkspaceEvent) {
   return (
+    event.attributedToName ||
     event.attributedToUser?.username ||
     event.attributedToUser?.name ||
     event.attributedToUser?.email ||
@@ -389,6 +390,20 @@ export default async function DashboardPage({
                           </option>
                         ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="attributedToName">
+                      Nové jméno
+                    </label>
+                    <input
+                      id="attributedToName"
+                      name="attributedToName"
+                      className="field"
+                      placeholder="Např. Tomáš z výroby"
+                    />
+                    <div className="muted" style={{ marginTop: 6, fontSize: "0.84rem" }}>
+                      Když vyplníš jméno, použije se místo výběru člena.
+                    </div>
                   </div>
                 </>
               ) : null}

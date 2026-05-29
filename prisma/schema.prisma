@@ -140,6 +140,7 @@ model Event {
   recurrenceRule String?
   createdById  String
   attributedToUserId String?
+  attributedToName String?
   calendar     Calendar        @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   createdBy    User            @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Restrict)
   attributedToUser User?       @relation("AttributedEvents", fields: [attributedToUserId], references: [id], onDelete: SetNull)
@@ -150,6 +151,7 @@ model Event {
   @@index([calendarId, startsAt])
   @@index([createdById])
   @@index([attributedToUserId])
+  @@index([attributedToName])
 }
 
 model EventParticipant {

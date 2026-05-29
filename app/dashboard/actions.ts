@@ -73,6 +73,7 @@ export async function createEvent(formData: FormData) {
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const attributedToUserId = String(formData.get("attributedToUserId") ?? "");
+  const attributedToName = String(formData.get("attributedToName") ?? "").trim();
 
   if (!calendarId || !title || !startsAt || !endsAt) {
     return;
@@ -104,9 +105,12 @@ export async function createEvent(formData: FormData) {
   }
 
   let attributedToUserIdValue: string | null = null;
+  let attributedToNameValue: string | null = null;
 
   if (user.role === "ADMIN" || membership?.role === "EDITOR" || membership?.role === "OWNER") {
-    if (attributedToUserId) {
+    if (attributedToName) {
+      attributedToNameValue = attributedToName;
+    } else if (attributedToUserId) {
       const targetMember = calendar.members.find((member) => member.userId === attributedToUserId);
 
       if (!targetMember) {
@@ -126,7 +130,8 @@ export async function createEvent(formData: FormData) {
       startsAt: new Date(startsAt),
       endsAt: new Date(endsAt),
       createdById: user.id,
-      attributedToUserId: attributedToUserIdValue
+      attributedToUserId: attributedToUserIdValue,
+      attributedToName: attributedToNameValue
     }
   });
 
