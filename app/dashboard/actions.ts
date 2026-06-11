@@ -110,6 +110,40 @@ export async function createEvent(formData: FormData) {
   if (user.role === "ADMIN" || membership?.role === "EDITOR" || membership?.role === "OWNER") {
     if (attributedToName) {
       attributedToNameValue = attributedToName;
+      await prisma.calendarAttributedName.upsert({
+        where: {
+          calendarId_name: {
+            calendarId,
+            name: attributedToName
+          }
+        },
+        create: {
+          calendarId,
+          name: attributedToName
+        },
+        update: {}
+      });
+    } else if (attributedToUserId.startsWith("name:")) {
+      const decodedName = decodeURIComponent(attributedToUserId.slice("name:".length)).trim();
+
+      if (!decodedName) {
+        return;
+      }
+
+      attributedToNameValue = decodedName;
+      await prisma.calendarAttributedName.upsert({
+        where: {
+          calendarId_name: {
+            calendarId,
+            name: decodedName
+          }
+        },
+        create: {
+          calendarId,
+          name: decodedName
+        },
+        update: {}
+      });
     } else if (attributedToUserId) {
       const targetMember = calendar.members.find((member) => member.userId === attributedToUserId);
 

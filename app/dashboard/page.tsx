@@ -15,6 +15,7 @@ type WorkspaceCalendar = Prisma.CalendarGetPayload<{
         user: true;
       };
     };
+    attributedNames: true;
   };
 }>;
 
@@ -122,6 +123,10 @@ function formatMemberLabel(member: WorkspaceCalendar["members"][number]) {
   return member.user.username || member.user.name || member.user.email || "Neznámý";
 }
 
+function formatSavedAttributionName(name: WorkspaceCalendar["attributedNames"][number]) {
+  return name.name;
+}
+
 function formatEventAuthor(event: WorkspaceEvent) {
   return (
     event.attributedToName ||
@@ -163,6 +168,11 @@ async function loadWorkspace(sessionUserId: string) {
         include: {
           user: true
         },
+        orderBy: {
+          createdAt: "asc"
+        }
+      },
+      attributedNames: {
         orderBy: {
           createdAt: "asc"
         }
@@ -389,6 +399,15 @@ export default async function DashboardPage({
                             {formatMemberLabel(member)}
                           </option>
                         ))}
+                      {calendarData.attributedNames.length ? (
+                        <optgroup label="Uložená jména">
+                          {calendarData.attributedNames.map((name) => (
+                            <option key={name.id} value={`name:${encodeURIComponent(name.name)}`}>
+                              {formatSavedAttributionName(name)}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
                     </select>
                   </div>
                   <div>
@@ -402,7 +421,7 @@ export default async function DashboardPage({
                       placeholder="Např. Tomáš z výroby"
                     />
                     <div className="muted" style={{ marginTop: 6, fontSize: "0.84rem" }}>
-                      Když vyplníš jméno, použije se místo výběru člena.
+                      Když vyplníš jméno, uloží se do seznamu a příště půjde vybrat v „Zapsat jako“.
                     </div>
                   </div>
                 </>

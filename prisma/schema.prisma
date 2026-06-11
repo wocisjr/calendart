@@ -106,6 +106,7 @@ model Calendar {
   owner       User            @relation("CalendarOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     CalendarMember[]
   events      Event[]
+  attributedNames CalendarAttributedName[]
   invites     Invite[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -152,6 +153,17 @@ model Event {
   @@index([createdById])
   @@index([attributedToUserId])
   @@index([attributedToName])
+}
+
+model CalendarAttributedName {
+  id         String   @id @default(cuid())
+  calendarId String
+  name       String
+  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([calendarId, name])
+  @@index([calendarId])
 }
 
 model EventParticipant {
