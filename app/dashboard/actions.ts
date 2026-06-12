@@ -72,10 +72,26 @@ export async function createEvent(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
+  const eventDate = String(formData.get("eventDate") ?? "");
+  const startTime = String(formData.get("startTime") ?? "");
+  const endTime = String(formData.get("endTime") ?? "");
   const attributedToUserId = String(formData.get("attributedToUserId") ?? "");
   const attributedToName = String(formData.get("attributedToName") ?? "").trim();
+  const resolvedStartsAt = startsAt || (eventDate && startTime ? `${eventDate}T${startTime}` : "");
+  const resolvedEndsAt = endsAt || (eventDate && endTime ? `${eventDate}T${endTime}` : "");
 
-  if (!calendarId || !title || !startsAt || !endsAt) {
+  if (!calendarId || !title || !resolvedStartsAt || !resolvedEndsAt) {
+    return;
+  }
+
+  const startDate = new Date(resolvedStartsAt);
+  const endDate = new Date(resolvedEndsAt);
+
+  if (
+    Number.isNaN(startDate.getTime()) ||
+    Number.isNaN(endDate.getTime()) ||
+    endDate < startDate
+  ) {
     return;
   }
 
@@ -161,8 +177,8 @@ export async function createEvent(formData: FormData) {
       title,
       description: description || null,
       location: location || null,
-      startsAt: new Date(startsAt),
-      endsAt: new Date(endsAt),
+      startsAt: startDate,
+      endsAt: endDate,
       createdById: user.id,
       attributedToUserId: attributedToUserIdValue,
       attributedToName: attributedToNameValue

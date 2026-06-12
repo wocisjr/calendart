@@ -73,11 +73,11 @@ function toDayKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function toDateTimeLocal(date: Date, time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  const result = new Date(date);
-  result.setHours(hours, minutes, 0, 0);
-  return result.toISOString().slice(0, 16);
+function toDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatMonthLabel(date: Date) {
@@ -252,8 +252,9 @@ export default async function DashboardPage({
   const eventsByDay = groupByDay(events);
   const selectedDayKey = toDayKey(selectedDate);
   const selectedDayEvents = eventsByDay[selectedDayKey] ?? [];
-  const selectedDayInput = toDateTimeLocal(selectedDate, "09:00");
-  const selectedDayEndInput = toDateTimeLocal(selectedDate, "10:00");
+  const selectedDayInput = toDateInputValue(selectedDate);
+  const selectedDayStartTime = "09:00";
+  const selectedDayEndTime = "10:00";
   const memberCount = calendarData.members.length;
   const monthLabel = formatMonthLabel(selectedDate);
   const prevMonthDate = addMonths(selectedDate, -1);
@@ -322,7 +323,9 @@ export default async function DashboardPage({
                       <div className="event-item__top">
                         <strong>{event.title}</strong>
                         <div className="event-item__actions">
-                          <span className="badge">{formatTime(new Date(event.startsAt))}</span>
+                          <span className="badge">
+                            {formatTime(new Date(event.startsAt))} - {formatTime(new Date(event.endsAt))}
+                          </span>
                           {canDeleteEvent ? (
                             <form action={removeEvent}>
                               <input type="hidden" name="eventId" value={event.id} />
@@ -359,17 +362,23 @@ export default async function DashboardPage({
                 <input id="event-title" name="title" className="field" placeholder="Porada" required />
               </div>
               <div className="inline-fields">
-                <div>
-                  <label className="label" htmlFor="startsAt">
-                    Začátek
-                  </label>
-                  <input id="startsAt" name="startsAt" className="field" type="datetime-local" defaultValue={selectedDayInput} required />
+              <div>
+                <label className="label" htmlFor="eventDate">
+                  Datum
+                </label>
+                <input id="eventDate" name="eventDate" className="field" type="date" defaultValue={selectedDayInput} required />
                 </div>
                 <div>
-                  <label className="label" htmlFor="endsAt">
+                  <label className="label" htmlFor="startTime">
+                    Začátek
+                  </label>
+                  <input id="startTime" name="startTime" className="field" type="time" defaultValue={selectedDayStartTime} required />
+                </div>
+                <div>
+                  <label className="label" htmlFor="endTime">
                     Konec
                   </label>
-                  <input id="endsAt" name="endsAt" className="field" type="datetime-local" defaultValue={selectedDayEndInput} required />
+                  <input id="endTime" name="endTime" className="field" type="time" defaultValue={selectedDayEndTime} required />
                 </div>
               </div>
               <div>
@@ -512,7 +521,9 @@ export default async function DashboardPage({
                     <div className="day-events day-events--month">
                       {visibleEvents.map((event) => (
                         <article className="event-chip" key={event.id}>
-                          <div className="event-chip__time">{formatTime(new Date(event.startsAt))}</div>
+                          <div className="event-chip__time">
+                            {formatTime(new Date(event.startsAt))} - {formatTime(new Date(event.endsAt))}
+                          </div>
                           <div className="event-chip__title">{event.title}</div>
                           <div className="event-chip__meta">{formatEventAuthor(event)}</div>
                         </article>
