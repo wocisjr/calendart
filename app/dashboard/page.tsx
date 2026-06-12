@@ -108,14 +108,16 @@ function isSameDay(left: Date, right: Date) {
 function formatTime(date: Date) {
   return new Intl.DateTimeFormat("cs-CZ", {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    hour12: false
   }).format(date);
 }
 
 function formatAddedAt(date: Date) {
   return new Intl.DateTimeFormat("cs-CZ", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
+    hour12: false
   }).format(date);
 }
 
@@ -361,24 +363,40 @@ export default async function DashboardPage({
                 </label>
                 <input id="event-title" name="title" className="field" placeholder="Porada" required />
               </div>
-              <div className="inline-fields">
               <div>
                 <label className="label" htmlFor="eventDate">
                   Datum
                 </label>
                 <input id="eventDate" name="eventDate" className="field" type="date" defaultValue={selectedDayInput} required />
-                </div>
+              </div>
+              <div className="time-fields">
                 <div>
                   <label className="label" htmlFor="startTime">
                     Začátek
                   </label>
-                  <input id="startTime" name="startTime" className="field" type="time" defaultValue={selectedDayStartTime} required />
+                  <input
+                    id="startTime"
+                    name="startTime"
+                    className="field"
+                    type="time"
+                    lang="cs-CZ"
+                    defaultValue={selectedDayStartTime}
+                    required
+                  />
                 </div>
                 <div>
                   <label className="label" htmlFor="endTime">
                     Konec
                   </label>
-                  <input id="endTime" name="endTime" className="field" type="time" defaultValue={selectedDayEndTime} required />
+                  <input
+                    id="endTime"
+                    name="endTime"
+                    className="field"
+                    type="time"
+                    lang="cs-CZ"
+                    defaultValue={selectedDayEndTime}
+                    required
+                  />
                 </div>
               </div>
               <div>

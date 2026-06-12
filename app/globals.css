@@ -289,6 +289,12 @@ textarea {
   gap: 12px;
 }
 
+.time-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -757,6 +763,10 @@ textarea {
   }
 
   .inline-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .time-fields {
     grid-template-columns: 1fr;
   }
 }
