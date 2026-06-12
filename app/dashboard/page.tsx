@@ -377,9 +377,11 @@ export default async function DashboardPage({
                   <input
                     id="startTime"
                     name="startTime"
-                    className="field"
-                    type="time"
-                    lang="cs-CZ"
+                    className="field field--time"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="^([01]\d|2[0-3]):([0-5]\d)$"
+                    placeholder="13:00"
                     defaultValue={selectedDayStartTime}
                     required
                   />
@@ -391,9 +393,11 @@ export default async function DashboardPage({
                   <input
                     id="endTime"
                     name="endTime"
-                    className="field"
-                    type="time"
-                    lang="cs-CZ"
+                    className="field field--time"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="^([01]\d|2[0-3]):([0-5]\d)$"
+                    placeholder="14:00"
                     defaultValue={selectedDayEndTime}
                     required
                   />

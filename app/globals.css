@@ -273,6 +273,10 @@ textarea {
   padding: 12px 14px;
 }
 
+.field--time {
+  font-variant-numeric: tabular-nums;
+}
+
 .textarea {
   min-height: 96px;
   resize: vertical;
