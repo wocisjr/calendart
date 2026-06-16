@@ -352,8 +352,11 @@ export async function updateUserRole(formData: FormData) {
   const user = await requireUser();
   const targetUserId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "");
+  const calendar = await getWorkspaceCalendar();
+  const membership = calendar.members.find((member) => member.userId === user.id);
+  const canManage = user.role === "ADMIN" || membership?.role === "OWNER";
 
-  if (user.role !== "ADMIN") {
+  if (!canManage) {
     return;
   }
 

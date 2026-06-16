@@ -229,6 +229,7 @@ export default async function DashboardPage({
   const canManage = session.user.role === "ADMIN" || Boolean(userMembership);
   const canAdminister = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
   const canAttributeEvents = session.user.role === "ADMIN" || userMembership?.role === "EDITOR" || userMembership?.role === "OWNER";
+  const canManageUserRoles = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
 
   if (!isAllowed) {
     return (
@@ -365,91 +366,94 @@ export default async function DashboardPage({
                         {formatAddedAt(new Date(event.createdAt))}
                       </div>
                       {canManageEvent ? (
-                        <form className="form-grid event-edit-form" action={updateEvent}>
-                          <input type="hidden" name="eventId" value={event.id} />
-                          <div>
-                            <label className="label" htmlFor={`event-title-${event.id}`}>
-                              Název
-                            </label>
-                            <input
-                              id={`event-title-${event.id}`}
-                              name="title"
-                              className="field"
-                              defaultValue={event.title}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="label" htmlFor={`event-date-${event.id}`}>
-                              Datum
-                            </label>
-                            <input
-                              id={`event-date-${event.id}`}
-                              name="eventDate"
-                              className="field"
-                              type="date"
-                              defaultValue={toDateInputValue(eventStart)}
-                              required
-                            />
-                          </div>
-                          <div className="time-fields">
+                        <details className="event-edit-panel">
+                          <summary className="button-ghost event-edit-toggle">Upravit událost</summary>
+                          <form className="form-grid event-edit-form" action={updateEvent}>
+                            <input type="hidden" name="eventId" value={event.id} />
                             <div>
-                              <label className="label" htmlFor={`event-start-${event.id}`}>
-                                Začátek
+                              <label className="label" htmlFor={`event-title-${event.id}`}>
+                                Název
                               </label>
                               <input
-                                id={`event-start-${event.id}`}
-                                name="startTime"
-                                className="field field--time"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="^([01]\\d|2[0-3]):([0-5]\\d)$"
-                                defaultValue={toTimeInputValue(eventStart)}
+                                id={`event-title-${event.id}`}
+                                name="title"
+                                className="field"
+                                defaultValue={event.title}
                                 required
                               />
                             </div>
                             <div>
-                              <label className="label" htmlFor={`event-end-${event.id}`}>
-                                Konec
+                              <label className="label" htmlFor={`event-date-${event.id}`}>
+                                Datum
                               </label>
                               <input
-                                id={`event-end-${event.id}`}
-                                name="endTime"
-                                className="field field--time"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="^([01]\\d|2[0-3]):([0-5]\\d)$"
-                                defaultValue={toTimeInputValue(eventEnd)}
+                                id={`event-date-${event.id}`}
+                                name="eventDate"
+                                className="field"
+                                type="date"
+                                defaultValue={toDateInputValue(eventStart)}
                                 required
                               />
                             </div>
-                          </div>
-                          <div>
-                            <label className="label" htmlFor={`event-location-${event.id}`}>
-                              Místo
-                            </label>
-                            <input
-                              id={`event-location-${event.id}`}
-                              name="location"
-                              className="field"
-                              defaultValue={event.location ?? ""}
-                            />
-                          </div>
-                          <div>
-                            <label className="label" htmlFor={`event-description-${event.id}`}>
-                              Poznámky
-                            </label>
-                            <textarea
-                              id={`event-description-${event.id}`}
-                              name="description"
-                              className="textarea"
-                              defaultValue={event.description ?? ""}
-                            />
-                          </div>
-                          <button className="button-ghost" type="submit">
-                            Upravit událost
-                          </button>
-                        </form>
+                            <div className="time-fields">
+                              <div>
+                                <label className="label" htmlFor={`event-start-${event.id}`}>
+                                  Začátek
+                                </label>
+                                <input
+                                  id={`event-start-${event.id}`}
+                                  name="startTime"
+                                  className="field field--time"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="^([01]\\d|2[0-3]):([0-5]\\d)$"
+                                  defaultValue={toTimeInputValue(eventStart)}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="label" htmlFor={`event-end-${event.id}`}>
+                                  Konec
+                                </label>
+                                <input
+                                  id={`event-end-${event.id}`}
+                                  name="endTime"
+                                  className="field field--time"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="^([01]\\d|2[0-3]):([0-5]\\d)$"
+                                  defaultValue={toTimeInputValue(eventEnd)}
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="label" htmlFor={`event-location-${event.id}`}>
+                                Místo
+                              </label>
+                              <input
+                                id={`event-location-${event.id}`}
+                                name="location"
+                                className="field"
+                                defaultValue={event.location ?? ""}
+                              />
+                            </div>
+                            <div>
+                              <label className="label" htmlFor={`event-description-${event.id}`}>
+                                Poznámky
+                              </label>
+                              <textarea
+                                id={`event-description-${event.id}`}
+                                name="description"
+                                className="textarea"
+                                defaultValue={event.description ?? ""}
+                              />
+                            </div>
+                            <button className="button-ghost" type="submit">
+                              Uložit změny
+                            </button>
+                          </form>
+                        </details>
                       ) : null}
                     </article>
                   );
@@ -587,6 +591,7 @@ export default async function DashboardPage({
                     <div className="member-actions">
                       {canEditRole ? (
                         <form className="member-role-form" action={updateCalendarMemberRole}>
+                          <span className="member-role-label">Kalendář</span>
                           <input type="hidden" name="memberId" value={member.id} />
                           <select className="select member-role-select" name="role" defaultValue={member.role}>
                             <option value="VIEWER">Základní</option>
@@ -597,10 +602,11 @@ export default async function DashboardPage({
                           </button>
                         </form>
                       ) : (
-                        <span className="badge">{formatMemberRole(member.role)}</span>
+                        <span className="badge">Kalendář: {formatMemberRole(member.role)}</span>
                       )}
-                      {session.user.role === "ADMIN" ? (
+                      {canManageUserRoles ? (
                         <form className="member-role-form" action={updateUserRole}>
+                          <span className="member-role-label">Účet</span>
                           <input type="hidden" name="userId" value={member.userId} />
                           <select className="select member-role-select" name="role" defaultValue={member.user.role}>
                             <option value="USER">Základní účet</option>
@@ -611,7 +617,7 @@ export default async function DashboardPage({
                           </button>
                         </form>
                       ) : (
-                        <span className="badge">{formatUserRole(member.user.role)}</span>
+                        <span className="badge">Účet: {formatUserRole(member.user.role)}</span>
                       )}
                       {canRemove ? (
                         <form action={removeCalendarMember}>
