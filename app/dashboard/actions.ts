@@ -15,6 +15,38 @@ async function requireUser() {
   return session.user;
 }
 
+function parseEventDate(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+async function getEventForManagement(eventId: string) {
+  return prisma.event.findUnique({
+    where: { id: eventId },
+    include: {
+      calendar: {
+        include: {
+          members: true
+        }
+      }
+    }
+  });
+}
+
+function canManageEvent(
+  user: Awaited<ReturnType<typeof requireUser>>,
+  event: NonNullable<Awaited<ReturnType<typeof getEventForManagement>>>
+) {
+  const membership = event.calendar.members.find((member) => member.userId === user.id);
+
+  return (
+    user.role === "ADMIN" ||
+    membership?.role === "OWNER" ||
+    membership?.role === "EDITOR" ||
+    event.createdById === user.id
+  );
+}
+
 export async function getWorkspaceCalendar() {
   const existing = await prisma.calendar.findFirst({
     where: { slug: "work" },
@@ -196,34 +228,59 @@ export async function removeEvent(formData: FormData) {
     return;
   }
 
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    include: {
-      calendar: {
-        include: {
-          members: true
-        }
-      }
-    }
-  });
+  const event = await getEventForManagement(eventId);
 
   if (!event) {
     return;
   }
 
-  const membership = event.calendar.members.find((member) => member.userId === user.id);
-  const canManage =
-    user.role === "ADMIN" ||
-    membership?.role === "OWNER" ||
-    membership?.role === "EDITOR" ||
-    event.createdById === user.id;
-
-  if (!canManage) {
+  if (!canManageEvent(user, event)) {
     return;
   }
 
   await prisma.event.delete({
     where: { id: eventId }
+  });
+
+  revalidatePath("/dashboard");
+}
+
+export async function updateEvent(formData: FormData) {
+  const user = await requireUser();
+  const eventId = String(formData.get("eventId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const eventDate = String(formData.get("eventDate") ?? "");
+  const startTime = String(formData.get("startTime") ?? "");
+  const endTime = String(formData.get("endTime") ?? "");
+
+  if (!eventId || !title || !eventDate || !startTime || !endTime) {
+    return;
+  }
+
+  const event = await getEventForManagement(eventId);
+
+  if (!event || !canManageEvent(user, event)) {
+    return;
+  }
+
+  const startDate = parseEventDate(`${eventDate}T${startTime}`);
+  const endDate = parseEventDate(`${eventDate}T${endTime}`);
+
+  if (!startDate || !endDate || endDate < startDate) {
+    return;
+  }
+
+  await prisma.event.update({
+    where: { id: eventId },
+    data: {
+      title,
+      description: description || null,
+      location: location || null,
+      startsAt: startDate,
+      endsAt: endDate
+    }
   });
 
   revalidatePath("/dashboard");
@@ -286,6 +343,27 @@ export async function updateCalendarMemberRole(formData: FormData) {
     data: {
       role
     }
+  });
+
+  revalidatePath("/dashboard");
+}
+
+export async function updateUserRole(formData: FormData) {
+  const user = await requireUser();
+  const targetUserId = String(formData.get("userId") ?? "");
+  const role = String(formData.get("role") ?? "");
+
+  if (user.role !== "ADMIN") {
+    return;
+  }
+
+  if (!targetUserId || (role !== "USER" && role !== "ADMIN")) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: targetUserId },
+    data: { role }
   });
 
   revalidatePath("/dashboard");

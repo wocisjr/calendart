@@ -4,7 +4,15 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createEvent, getOrCreateWorkspaceCalendar, removeCalendarMember, removeEvent, updateCalendarMemberRole } from "./actions";
+import {
+  createEvent,
+  getOrCreateWorkspaceCalendar,
+  removeCalendarMember,
+  removeEvent,
+  updateCalendarMemberRole,
+  updateEvent,
+  updateUserRole
+} from "./actions";
 import { LogoutButton } from "@/app/logout-button";
 
 type WorkspaceCalendar = Prisma.CalendarGetPayload<{
@@ -113,6 +121,12 @@ function formatTime(date: Date) {
   }).format(date);
 }
 
+function toTimeInputValue(date: Date) {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
 function formatAddedAt(date: Date) {
   return new Intl.DateTimeFormat("cs-CZ", {
     dateStyle: "medium",
@@ -146,6 +160,10 @@ function formatMemberRole(role: string) {
   if (role === "OWNER") return "Vlastník";
   if (role === "EDITOR") return "Admin";
   return "Základní";
+}
+
+function formatUserRole(role: "USER" | "ADMIN") {
+  return role === "ADMIN" ? "Admin" : "Základní";
 }
 
 function groupByDay(events: WorkspaceEvent[]) {
@@ -314,11 +332,13 @@ export default async function DashboardPage({
             {selectedDayEvents.length ? (
               <div className="event-list">
                 {selectedDayEvents.map((event) => {
-                    const canDeleteEvent =
-                      session.user.role === "ADMIN" ||
-                      userMembership?.role === "OWNER" ||
-                      userMembership?.role === "EDITOR" ||
-                      event.createdById === session.user.id;
+                  const canManageEvent =
+                    session.user.role === "ADMIN" ||
+                    userMembership?.role === "OWNER" ||
+                    userMembership?.role === "EDITOR" ||
+                    event.createdById === session.user.id;
+                  const eventStart = new Date(event.startsAt);
+                  const eventEnd = new Date(event.endsAt);
 
                   return (
                     <article className="event-item" key={event.id}>
@@ -326,9 +346,9 @@ export default async function DashboardPage({
                         <strong>{event.title}</strong>
                         <div className="event-item__actions">
                           <span className="badge">
-                            {formatTime(new Date(event.startsAt))} - {formatTime(new Date(event.endsAt))}
+                            {formatTime(eventStart)} - {formatTime(eventEnd)}
                           </span>
-                          {canDeleteEvent ? (
+                          {canManageEvent ? (
                             <form action={removeEvent}>
                               <input type="hidden" name="eventId" value={event.id} />
                               <button className="button-danger button-danger--small" type="submit">
@@ -344,6 +364,93 @@ export default async function DashboardPage({
                         Přidal {formatEventAuthor(event)} dne{" "}
                         {formatAddedAt(new Date(event.createdAt))}
                       </div>
+                      {canManageEvent ? (
+                        <form className="form-grid event-edit-form" action={updateEvent}>
+                          <input type="hidden" name="eventId" value={event.id} />
+                          <div>
+                            <label className="label" htmlFor={`event-title-${event.id}`}>
+                              Název
+                            </label>
+                            <input
+                              id={`event-title-${event.id}`}
+                              name="title"
+                              className="field"
+                              defaultValue={event.title}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="label" htmlFor={`event-date-${event.id}`}>
+                              Datum
+                            </label>
+                            <input
+                              id={`event-date-${event.id}`}
+                              name="eventDate"
+                              className="field"
+                              type="date"
+                              defaultValue={toDateInputValue(eventStart)}
+                              required
+                            />
+                          </div>
+                          <div className="time-fields">
+                            <div>
+                              <label className="label" htmlFor={`event-start-${event.id}`}>
+                                Začátek
+                              </label>
+                              <input
+                                id={`event-start-${event.id}`}
+                                name="startTime"
+                                className="field field--time"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="^([01]\\d|2[0-3]):([0-5]\\d)$"
+                                defaultValue={toTimeInputValue(eventStart)}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="label" htmlFor={`event-end-${event.id}`}>
+                                Konec
+                              </label>
+                              <input
+                                id={`event-end-${event.id}`}
+                                name="endTime"
+                                className="field field--time"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="^([01]\\d|2[0-3]):([0-5]\\d)$"
+                                defaultValue={toTimeInputValue(eventEnd)}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="label" htmlFor={`event-location-${event.id}`}>
+                              Místo
+                            </label>
+                            <input
+                              id={`event-location-${event.id}`}
+                              name="location"
+                              className="field"
+                              defaultValue={event.location ?? ""}
+                            />
+                          </div>
+                          <div>
+                            <label className="label" htmlFor={`event-description-${event.id}`}>
+                              Poznámky
+                            </label>
+                            <textarea
+                              id={`event-description-${event.id}`}
+                              name="description"
+                              className="textarea"
+                              defaultValue={event.description ?? ""}
+                            />
+                          </div>
+                          <button className="button-ghost" type="submit">
+                            Upravit událost
+                          </button>
+                        </form>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -491,6 +598,20 @@ export default async function DashboardPage({
                         </form>
                       ) : (
                         <span className="badge">{formatMemberRole(member.role)}</span>
+                      )}
+                      {session.user.role === "ADMIN" ? (
+                        <form className="member-role-form" action={updateUserRole}>
+                          <input type="hidden" name="userId" value={member.userId} />
+                          <select className="select member-role-select" name="role" defaultValue={member.user.role}>
+                            <option value="USER">Základní účet</option>
+                            <option value="ADMIN">Admin účet</option>
+                          </select>
+                          <button className="button-ghost button-ghost--compact" type="submit">
+                            Uložit účet
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="badge">{formatUserRole(member.user.role)}</span>
                       )}
                       {canRemove ? (
                         <form action={removeCalendarMember}>

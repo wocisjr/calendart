@@ -655,6 +655,12 @@ textarea {
   gap: 8px;
 }
 
+.event-edit-form {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
 .event-item__top {
   display: flex;
   align-items: start;
