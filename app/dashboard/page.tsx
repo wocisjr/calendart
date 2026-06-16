@@ -9,7 +9,6 @@ import {
   getOrCreateWorkspaceCalendar,
   removeCalendarMember,
   removeEvent,
-  updateCalendarMemberRole,
   updateEvent,
   updateUserRole
 } from "./actions";
@@ -156,12 +155,6 @@ function formatEventAuthor(event: WorkspaceEvent) {
   );
 }
 
-function formatMemberRole(role: string) {
-  if (role === "OWNER") return "Vlastník";
-  if (role === "EDITOR") return "Admin";
-  return "Základní";
-}
-
 function formatUserRole(role: "USER" | "ADMIN") {
   return role === "ADMIN" ? "Admin" : "Základní";
 }
@@ -229,7 +222,6 @@ export default async function DashboardPage({
   const canManage = session.user.role === "ADMIN" || Boolean(userMembership);
   const canAdminister = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
   const canAttributeEvents = session.user.role === "ADMIN" || userMembership?.role === "EDITOR" || userMembership?.role === "OWNER";
-  const canManageUserRoles = session.user.role === "ADMIN" || userMembership?.role === "OWNER";
 
   if (!isAllowed) {
     return (
@@ -580,7 +572,6 @@ export default async function DashboardPage({
               {calendarData.members.map((member) => {
                 const isOwner = member.userId === calendarData.ownerId;
                 const canRemove = canAdminister && !isOwner;
-                const canEditRole = canAdminister && !isOwner;
 
                 return (
                   <article className="member-pill" key={member.id}>
@@ -589,35 +580,19 @@ export default async function DashboardPage({
                       <div className="muted">{member.user.email || "Bez e-mailu"}</div>
                     </div>
                     <div className="member-actions">
-                      {canEditRole ? (
-                        <form className="member-role-form" action={updateCalendarMemberRole}>
-                          <span className="member-role-label">Kalendář</span>
-                          <input type="hidden" name="memberId" value={member.id} />
-                          <select className="select member-role-select" name="role" defaultValue={member.role}>
-                            <option value="VIEWER">Základní</option>
-                            <option value="EDITOR">Admin</option>
-                          </select>
-                          <button className="button-ghost button-ghost--compact" type="submit">
-                            Uložit
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="badge">Kalendář: {formatMemberRole(member.role)}</span>
-                      )}
-                      {canManageUserRoles ? (
+                      {canAdminister ? (
                         <form className="member-role-form" action={updateUserRole}>
-                          <span className="member-role-label">Účet</span>
                           <input type="hidden" name="userId" value={member.userId} />
                           <select className="select member-role-select" name="role" defaultValue={member.user.role}>
-                            <option value="USER">Základní účet</option>
-                            <option value="ADMIN">Admin účet</option>
+                            <option value="USER">Základní</option>
+                            <option value="ADMIN">Admin</option>
                           </select>
                           <button className="button-ghost button-ghost--compact" type="submit">
-                            Uložit účet
+                            Uložit roli
                           </button>
                         </form>
                       ) : (
-                        <span className="badge">Účet: {formatUserRole(member.user.role)}</span>
+                        <span className="badge">{formatUserRole(member.user.role)}</span>
                       )}
                       {canRemove ? (
                         <form action={removeCalendarMember}>
