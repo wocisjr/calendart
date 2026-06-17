@@ -7,6 +7,7 @@ Minimal web calendar with:
 - admin view over other users' calendars
 - PWA install support
 - Docker-based local dev
+- native Zerops deployment without Docker
 
 ## Quick start
 
@@ -48,6 +49,30 @@ Then open `http://localhost:3000`.
 npm run build
 npm run start
 ```
+
+## Zerops deployment
+
+This repo includes native Zerops configuration:
+
+- `import.yaml` creates a `nodejs@22` app service and a managed `mariadb:single@10.6` database.
+- `zerops.yaml` builds the Next.js app with npm, generates the Prisma client, deploys the build output, and starts Next.js directly with Node.js.
+- The app no longer needs Docker on Zerops. Docker Compose can still be used for local development.
+
+Import the topology first:
+
+```bash
+zerops project import --file import.yaml
+```
+
+Then deploy the app code to the `app` service using the `app` setup from `zerops.yaml`.
+
+Runtime behavior on Zerops:
+
+- `DATABASE_URL` is generated from the managed `db` service.
+- `NEXTAUTH_URL` is set to the Zerops subdomain exposed for the app.
+- `NEXTAUTH_SECRET` is generated once during import as a project-level variable.
+- `ADMIN_EMAILS` is created as an empty project-level variable; set it in Zerops when needed.
+- `prisma db push --accept-data-loss` runs once per deploy before the app starts, matching the existing Docker startup behavior.
 
 ## Environment
 

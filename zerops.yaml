@@ -1,0 +1,37 @@
+zerops:
+  - setup: app
+    build:
+      base: nodejs@22
+      buildCommands:
+        - npm ci
+        - npx prisma generate
+        - npm run build
+      deployFiles:
+        - .
+      cache:
+        - node_modules
+
+    deploy:
+      readinessCheck:
+        httpGet:
+          port: 3000
+          path: /login
+
+    run:
+      base: nodejs@22
+      envVariables:
+        NODE_ENV: production
+        NEXT_TELEMETRY_DISABLED: "1"
+        PORT: "3000"
+        DATABASE_URL: mysql://${db_user}:${db_password}@db:${db_port}/${db_dbName}
+        NEXTAUTH_URL: ${zeropsSubdomain}
+      initCommands:
+        - zsc execOnce ${appVersionId} --retryUntilSuccessful -- npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
+      ports:
+        - port: 3000
+          httpSupport: true
+      start: npm run start:zerops
+      healthCheck:
+        httpGet:
+          port: 3000
+          path: /login
