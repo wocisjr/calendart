@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const headline = mode === "login" ? "Přihlas se do kalendáře." : "Vytvoř si účet do kalendáře.";
+  const headline = mode === "login" ? "Přihlášení." : "Vytvoř si účet do kalendáře.";
   const hint =
     mode === "login"
       ? "Použij svoje uživatelské jméno a heslo."
