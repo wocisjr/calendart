@@ -1,0 +1,23 @@
+#zeropsPreprocessor=on
+project:
+  name: calendart
+  envVariables:
+    NEXTAUTH_SECRET: <@generateRandomString(<48>)>
+    ADMIN_EMAILS: ""
+
+services:
+  - hostname: db
+    type: mariadb:single@10.6
+    priority: 10
+    verticalAutoscaling:
+      minRam: 0.25
+
+  - hostname: app
+    type: nodejs@22
+    startWithoutCode: true
+    enableSubdomainAccess: true
+    minContainers: 1
+    maxContainers: 1
+    verticalAutoscaling:
+      minRam: 1
+      minFreeRamGB: 0.25
