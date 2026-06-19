@@ -69,7 +69,7 @@ Then deploy the app code to the `app` service using the `app` setup from `zerops
 Runtime behavior on Zerops:
 
 - `DATABASE_URL` is generated from the managed `db` service.
-- `NEXTAUTH_URL` is set to the Zerops subdomain exposed for the app.
+- `NEXTAUTH_URL` should be set in Zerops to the exact public URL you really use in the browser, for example `https://calendar.wocisjr.online`.
 - `NEXTAUTH_SECRET` is generated once during import as a project-level variable.
 - `ADMIN_EMAILS` is created as an empty project-level variable; set it in Zerops when needed.
 - `prisma db push --accept-data-loss` runs once per deploy before the app starts, matching the existing Docker startup behavior.

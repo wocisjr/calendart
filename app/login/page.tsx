@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 
 type AuthMode = "login" | "register";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +46,8 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = result?.url ?? "/dashboard";
+      router.push("/dashboard");
+      router.refresh();
     } finally {
       setIsSubmitting(false);
     }

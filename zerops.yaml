@@ -24,7 +24,6 @@ zerops:
         NEXT_TELEMETRY_DISABLED: "1"
         PORT: "3000"
         DATABASE_URL: mysql://${db_user}:${db_password}@db:${db_port}/${db_dbName}
-        NEXTAUTH_URL: ${zeropsSubdomain}
       initCommands:
         - zsc execOnce ${appVersionId} --retryUntilSuccessful -- npx prisma db push --schema=prisma/schema.prisma --accept-data-loss
       ports:
